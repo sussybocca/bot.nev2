@@ -6,7 +6,6 @@
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
 .bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-pre { background: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; }
 input { padding: 5px; width: 70%; margin-right: 5px; }
 button { padding: 5px 10px; margin-right:5px; }
 .fbx-preview { width:100px; height:100px; background:#ddd; display:inline-block; margin-right:5px; text-align:center; line-height:100px; }
@@ -20,14 +19,53 @@ button { padding: 5px 10px; margin-right:5px; }
 <script src="/espeakng-min.js"></script>
 
 <script>
-let tts;
-document.addEventListener('DOMContentLoaded', () => {
+let tts; // eSpeakNG
+let availableVoices = [];
+
+// Initialize TTS and load browser voices
+document.addEventListener('DOMContentLoaded', async () => {
   if (typeof eSpeakNG !== 'undefined') {
-    tts = new eSpeakNG('/espeakng-worker.js', () => {
-      console.log('TTS ready');
-    });
+    tts = new eSpeakNG('/espeakng-worker.js', () => console.log('eSpeakNG ready'));
+  }
+
+  availableVoices = window.speechSynthesis.getVoices();
+  if (!availableVoices.length) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      availableVoices = window.speechSynthesis.getVoices();
+    };
   }
 });
+
+// Find the correct browser voice based on bot's voice_id
+function findBrowserVoice(voiceId) {
+  let voice = availableVoices.find(v => v.name.toLowerCase().includes(voiceId.toLowerCase()));
+  if (!voice) {
+    const lang = voiceId.replace('_','-'); // en_us → en-US
+    voice = availableVoices.find(v => v.lang.toLowerCase() === lang.toLowerCase());
+  }
+  return voice || null; // fallback to null to use eSpeakNG
+}
+
+// Speak using browser TTS first, fallback to eSpeakNG
+async function speak(reply, voiceId) {
+  const browserVoice = findBrowserVoice(voiceId);
+  if (browserVoice) {
+    const utter = new SpeechSynthesisUtterance(reply);
+    utter.voice = browserVoice;
+    window.speechSynthesis.speak(utter);
+    return;
+  }
+
+  if (tts) {
+    try {
+      await tts.speak(reply, { voice: voiceId });
+    } catch(err) {
+      console.error('eSpeakNG TTS error:', err);
+    }
+  } else {
+    console.warn('No TTS available for voice:', voiceId);
+  }
+}
 
 const functionPath = window.location.hostname.includes('localhost')
   ? '/netlify/functions/generateExplore'
@@ -42,38 +80,28 @@ async function fetchBots() {
     const html = await res.text();
     container.innerHTML = html;
 
-    // Add sendMessage to all bots
     const botDivs = container.querySelectorAll('.bot');
     botDivs.forEach((botDiv, index) => {
       const sendBtn = botDiv.querySelector('button');
       const input = botDiv.querySelector('input');
       const chat = botDiv.querySelector(`#chat-${index}`);
 
-      sendBtn.addEventListener('click', () => {
+      sendBtn.addEventListener('click', async () => {
         const msg = input.value.trim();
         if (!msg) return;
 
         const description = botDiv.dataset.description || '';
-        const voice = botDiv.dataset.voice || 'en_us';
+        const botVoiceId = botDiv.dataset.voice || 'en_us';
         const reply = "You said: '" + msg + "'. " + description;
 
-        chat.innerHTML += "<div><strong>You:</strong> " + msg + "</div>";
-        chat.innerHTML += "<div><strong>Bot:</strong> " + reply + "</div>";
+        chat.innerHTML += `<div><strong>You:</strong> ${msg}</div>`;
+        chat.innerHTML += `<div><strong>Bot:</strong> ${reply}</div>`;
 
-        // Speak reply
-        if (tts) {
-          tts.speak(reply, { voice }).catch(err => console.error("TTS error:", err));
-        } else if (window.speechSynthesis) {
-          const utter = new SpeechSynthesisUtterance(reply);
-          utter.lang = voice.replace('_','-'); // en_us -> en-US
-          window.speechSynthesis.speak(utter);
-        }
-
+        await speak(reply, botVoiceId);
         input.value = '';
       });
     });
-
-  } catch (err) {
+  } catch(err) {
     console.error(err);
     container.innerHTML = `<p style="color:red;">Failed to load bots: ${err.message}</p>`;
   }
