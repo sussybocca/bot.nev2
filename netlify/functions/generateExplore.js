@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { voices } from './voices.js'; // import server-side for inlining
+import { voices } from './voices.js'; // your pre-defined voices array
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -33,7 +33,6 @@ async function generateExploreHTML() {
     `;
   });
 
-  // Inline voices for browser
   const voicesJSON = JSON.stringify(voices);
 
   return `
@@ -56,7 +55,6 @@ async function generateExploreHTML() {
 
     <script type="module">
       const voices = ${voicesJSON};
-
       let tts;
       let availableVoices = [];
 
@@ -84,6 +82,9 @@ async function generateExploreHTML() {
         if (browserVoice) {
           const utter = new SpeechSynthesisUtterance(text);
           utter.voice = browserVoice;
+          utter.rate = 1;
+          utter.pitch = 1;
+          utter.volume = 1;
           window.speechSynthesis.speak(utter);
           return;
         }
