@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <input type="email" id="email" placeholder="Email" required /><br>
+  <input type="password" id="password" placeholder="Password" required /><br>
+  <button id="loginBtn">Login</button>
+  <div id="output"></div>
+
+  <script>
+    const output = document.getElementById('output');
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      const res = await fetch('/.netlify/functions/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email, password})
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        output.textContent = "Login successful!";
+        window.location.href = '/profile.html?email='+encodeURIComponent(email);
+      } else {
+        output.textContent = `Error: ${data.error}`;
+      }
+    });
+  </script>
+</body>
+</html>
