@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign Up</title>
+  <style>
+    body { font-family: Arial; background: #f9fafc; padding: 40px; text-align: center; }
+    input, button { padding: 10px; margin: 10px 0; width: 250px; font-size: 14px; }
+    .output { margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>Sign Up</h1>
+  <input type="email" id="email" placeholder="Email" required /><br>
+  <input type="password" id="password" placeholder="Password (30+ chars, Capital first, numbers & 2 symbols)" required /><br>
+  <button id="signupBtn">Sign Up</button>
+  <div class="output" id="output"></div>
+
+  <script>
+    const output = document.getElementById('output');
+    document.getElementById('signupBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!email || !password) {
+        output.textContent = "Enter email and password.";
+        return;
+      }
+
+      const res = await fetch('/.netlify/functions/signup', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email, password})
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        output.textContent = "Verification code sent! Check email.";
+        // Redirect to profile creation after verification
+        setTimeout(() => window.location.href = '/profile.html?email='+encodeURIComponent(email), 2000);
+      } else {
+        output.textContent = `Error: ${data.error}`;
+      }
+    });
+  </script>
+</body>
+</html>
