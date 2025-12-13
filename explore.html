@@ -5,17 +5,18 @@
 <title>Explore Bots</title>
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-.bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+.bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 pre { background: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; }
+input { padding: 5px; width: 70%; margin-right: 5px; }
+button { padding: 5px 10px; margin-right:5px; }
+.fbx-preview { width:100px; height:100px; background:#ddd; display:inline-block; margin-right:5px; text-align:center; line-height:100px; }
 </style>
 </head>
 <body>
 <h1>Explore Bots</h1>
-
 <div id="bots-container">Loading bots...</div>
 
 <script>
-// Determine the function path
 const functionPath = window.location.hostname.includes('localhost')
   ? '/netlify/functions/generateExplore'
   : '/.netlify/functions/generateExplore';
@@ -23,12 +24,10 @@ const functionPath = window.location.hostname.includes('localhost')
 async function fetchBots() {
   const container = document.getElementById('bots-container');
   container.innerHTML = 'Loading bots...';
-
   try {
     const res = await fetch(functionPath);
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-    const html = await res.text(); // your function returns full HTML
+    const html = await res.text();
     container.innerHTML = html;
   } catch (err) {
     console.error(err);
@@ -36,8 +35,8 @@ async function fetchBots() {
   }
 }
 
-// Fetch bots on page load
 window.addEventListener('DOMContentLoaded', fetchBots);
 </script>
 </body>
 </html>
+
