@@ -40,18 +40,40 @@ const DESCRIPTION = "${description}";
 const VOICE_ID = "${voice_id}";
 const FBX_MODEL = "${fbx_model_id}";
 
-function respond(message) {
-  return "You said: '" + message + "'. " + DESCRIPTION;
+// -------------------- Setup TTS --------------------
+// Assumes espeakng-min.js and espeakng-worker.js are loaded in the environment
+let tts;
+if (typeof eSpeakNG !== 'undefined') {
+  tts = new eSpeakNG('/espeakng-worker.js');
 }
 
-process.stdin.on('data', (data) => {
-  const msg = data.toString().trim();
-  console.log("[Bot Reply]: " + respond(msg));
-});
+// Respond function that also speaks
+function respond(message) {
+  const reply = "You said: '" + message + "'. " + DESCRIPTION;
+  if (tts) {
+    tts.speak(reply, { voice: VOICE_ID }).catch(err => console.error("TTS error:", err));
+  } else if (typeof window !== 'undefined' && window.speechSynthesis) {
+    // fallback to browser TTS
+    const utter = new SpeechSynthesisUtterance(reply);
+    utter.lang = VOICE_ID.replace('_', '-'); // simple mapping for en_us -> en-US
+    window.speechSynthesis.speak(utter);
+  }
+  return reply;
+}
+
+// Listen for messages (CLI or browser)
+if (typeof process !== 'undefined' && process.stdin) {
+  process.stdin.on('data', (data) => {
+    const msg = data.toString().trim();
+    const reply = respond(msg);
+    console.log("[Bot Reply]: " + reply);
+  });
+}
 
 console.log("Bot is ready with voice [" + VOICE_ID + "] and FBX [" + FBX_MODEL + "]");`
   };
 }
+
 
 // ---------------------- Bot Actions ----------------------
 async function createBot({ name, description, voice_id, fbx_model_id, paid_link }) {
@@ -148,3 +170,4 @@ export async function handler(event) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message || "Unknown server error" }) };
   }
 }
+
