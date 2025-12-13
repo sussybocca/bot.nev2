@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "description": "Server moderation bot with custom bot creation, explore page, and user system",
   "type": "module",
-  "main": "api/overpoweredbot.js",
+  "main": "netlify/functions/overpoweredbot.js",
   "scripts": {
-    "dev": "vercel dev",
-    "start": "node api/overpoweredbot.js",
-    "explore": "node api/generateExplore.js",
-    "signup": "node api/signup.js",
-    "login": "node api/login.js",
-    "profile": "node api/profileCreation.js"
+    "dev": "netlify dev",
+    "start": "node netlify/functions/overpoweredbot.js",
+    "explore": "node netlify/functions/generateExplore.js",
+    "signup": "node netlify/functions/signup.js",
+    "login": "node netlify/functions/login.js",
+    "profile": "node netlify/functions/profileCreation.js"
   },
-  "author": "Your Name",
+  "author": "William Isaiah Jones",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
