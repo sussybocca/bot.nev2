@@ -9,12 +9,9 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ Missing Supabase credentials!");
-  console.error("SUPABASE_URL:", SUPABASE_URL || "(undefined)");
-  console.error("SUPABASE_KEY:", SUPABASE_KEY ? "(set)" : "(undefined)");
   process.exit(1);
 }
 
-console.log("✅ Supabase environment variables loaded.");
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---------------------- Helpers ----------------------
@@ -34,14 +31,17 @@ function moderateContent(files) {
   return false;
 }
 
-function generateUserFiles(description, apiKey) {
+function generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey }) {
   return {
     "bot.js": `// Auto-generated bot
 const API_KEY = "${apiKey}";
-const description = "${description}";
+const BOT_NAME = "${name}";
+const DESCRIPTION = "${description}";
+const VOICE_ID = "${voice_id}";
+const FBX_MODEL = "${fbx_model_id}";
 
 function respond(message) {
-  return "You said: '" + message + "'. " + description;
+  return "You said: '" + message + "'. " + DESCRIPTION;
 }
 
 process.stdin.on('data', (data) => {
@@ -49,57 +49,48 @@ process.stdin.on('data', (data) => {
   console.log("[Bot Reply]: " + respond(msg));
 });
 
-console.log("Bot is ready!");`
+console.log("Bot is ready with voice [" + VOICE_ID + "] and FBX [" + FBX_MODEL + "]");`
   };
 }
 
 // ---------------------- Bot Actions ----------------------
-async function createBot(description) {
-  console.log("🛠️ Creating bot with description:", description);
+async function createBot({ name, description, voice_id, fbx_model_id, paid_link }) {
+  if (!name || !description || !voice_id || !fbx_model_id) {
+    return { error: "Missing required fields: name, description, voice_id, fbx_model_id" };
+  }
 
   const hash = `bot_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const apiKey = generateAPIKey();
-  const files = generateUserFiles(description, apiKey);
+  const files = generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey });
 
   if (moderateContent(files)) {
-    console.error("❌ Bot contains harmful content. Aborting.");
     return { error: "Harmful content detected" };
   }
 
-  // Only insert essential columns
   const newBot = {
-    name: `Bot_${Date.now()}`,
+    name,
     description,
     files,
     hash,
-    created_at: new Date().toISOString(),
-    api_key: apiKey
+    api_key: apiKey,
+    voice_id,
+    fbx_model_id,
+    paid_link: paid_link || null,
+    created_at: new Date().toISOString()
   };
 
   try {
-    const { error } = await supabase.from('sites').insert(newBot);
-    if (error) {
-      console.error("❌ Supabase Insert Error:", error.message);
-      return { error: error.message, details: error.details, hint: error.hint };
-    }
-
-    console.log(`✅ Bot created successfully!
-- Hash: ${hash}
-- API Key: ${apiKey}`);
-
+    const { error } = await supabase.from('bots').insert(newBot);
+    if (error) return { error: error.message, details: error.details, hint: error.hint };
     return { hash, apiKey };
   } catch (err) {
-    console.error("🔥 Unexpected error during insert:", err);
     return { error: err.message || "Unknown error" };
   }
 }
 
-async function listBots() {
-  const { data: bots, error } = await supabase.from('sites').select('*').limit(10);
-  if (error) {
-    console.error("❌ Error fetching bots:", error.message);
-    return [];
-  }
+async function listBots(limit = 10) {
+  const { data: bots, error } = await supabase.from('bots').select('*').limit(limit);
+  if (error) return [];
   return bots || [];
 }
 
@@ -107,12 +98,15 @@ async function listBots() {
 if (process.env.CLI_MODE === "true") {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   console.log("🤖 Overpowered Bot CLI running...");
-  console.log("Commands: !ping, !createbot <description>, !listbots");
+  console.log("Commands: !ping, !createbot <description> <voice_id> <fbx_model_id>, !listbots");
 
   rl.on('line', async (input) => {
     const [cmd, ...args] = input.split(' ');
     if (cmd === '!ping') console.log('Pong!');
-    else if (cmd === '!createbot') await createBot(args.join(' '));
+    else if (cmd === '!createbot') {
+      const [desc, voice, fbx] = args;
+      console.log(await createBot({ name: `CLI_Bot_${Date.now()}`, description: desc, voice_id: voice, fbx_model_id: fbx }));
+    }
     else if (cmd === '!listbots') console.log(await listBots());
     else console.log('Unknown command.');
   });
@@ -121,16 +115,16 @@ if (process.env.CLI_MODE === "true") {
 // ---------------------- Netlify Function Handler ----------------------
 export async function handler(event) {
   try {
-    console.log("⚡ Incoming event:", event.httpMethod, event.path);
-
     const method = event.httpMethod || 'GET';
     const query = event.queryStringParameters || {};
     const body = event.body ? JSON.parse(event.body) : {};
+    const description = query.description || body.description;
+    const name = query.name || body.name;
+    const voice_id = query.voice_id || body.voice_id;
+    const fbx_model_id = query.fbx_model_id || body.fbx_model_id;
+    const paid_link = query.paid_link || body.paid_link;
     const action = query.action || body.action || null;
-    const description = query.description || body.description || null;
     const id = query.id || body.id || null;
-
-    console.log("🧠 Action:", action, "| Description:", description, "| ID:", id);
 
     if (action === 'listbots') {
       const bots = await listBots();
@@ -138,20 +132,19 @@ export async function handler(event) {
     }
 
     if (action === 'getbot' && id) {
-      const { data: bot, error } = await supabase.from('sites').select('*').eq('hash', id).single();
+      const { data: bot, error } = await supabase.from('bots').select('*').eq('hash', id).single();
       if (error || !bot) return { statusCode: 404, body: JSON.stringify({ error: "Bot not found" }) };
       return { statusCode: 200, body: JSON.stringify(bot) };
     }
 
-    if (method === 'POST' && description) {
-      const result = await createBot(description);
-      if (result.error) return { statusCode: 500, body: JSON.stringify(result) };
+    if (method === 'POST') {
+      const result = await createBot({ name, description, voice_id, fbx_model_id, paid_link });
+      if (result.error) return { statusCode: 400, body: JSON.stringify(result) };
       return { statusCode: 200, body: JSON.stringify(result) };
     }
 
-    return { statusCode: 400, body: JSON.stringify({ error: "Invalid action or missing description" }) };
+    return { statusCode: 400, body: JSON.stringify({ error: "Invalid action or missing parameters" }) };
   } catch (err) {
-    console.error("🔥 Handler caught error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message || "Unknown server error" }) };
   }
 }
