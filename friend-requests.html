@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Friend Requests</title>
+<style>
+  body { font-family: sans-serif; background:#111; color:#eee; }
+  .user { display:flex; align-items:center; margin-bottom:8px; }
+  .user img { width:40px; height:40px; border-radius:50%; margin-right:8px; }
+  .online { color:lime; }
+  .offline { color:gray; }
+</style>
+</head>
+<body>
+<h1>Friend Requests</h1>
+<div id="profile"></div>
+
+<input type="email" id="friendEmail" placeholder="Friend's Email">
+<button id="sendRequestBtn">Send Request</button>
+
+<h2>Incoming Requests</h2>
+<div id="incomingRequests"></div>
+
+<script>
+  // ---------- Auto-login ----------
+  let userEmail = localStorage.getItem('userEmail');
+  if (!userEmail) {
+    userEmail = prompt('Enter your email for demo auto-login:');
+    localStorage.setItem('userEmail', userEmail);
+  }
+
+  // ---------- Load Profile ----------
+  async function loadProfile() {
+    const response = await fetch('/.netlify/functions/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'get-profile', receiver_email: userEmail })
+    });
+    const { user } = await response.json();
+
+    if (user) {
+      const div = document.getElementById('profile');
+      const lastOnline = new Date(user.last_online || 0);
+      const online = (Date.now() - lastOnline) < 5*60*1000 ? 'online' : 'offline';
+      div.innerHTML = `
+        <div class="user">
+          <img src="${user.profile_picture || 'default.png'}" />
+          <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
+        </div>
+      `;
+
+      // Update last_online
+      await fetch('/.netlify/functions/friend-requests', {
+        method: 'POST',
+        body: JSON.stringify({ action:'update-last-online', receiver_email:userEmail })
+      });
+    }
+  }
+
+  // ---------- Send Friend Request ----------
+  document.getElementById('sendRequestBtn').addEventListener('click', async () => {
+    const receiver_email = document.getElementById('friendEmail').value;
+    const response = await fetch('/.netlify/functions/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ action:'send', sender_email:userEmail, receiver_email })
+    });
+    const data = await response.json();
+    alert(data.success ? 'Request sent!' : data.error);
+    loadIncoming();
+  });
+
+  // ---------- Load Incoming Requests ----------
+  async function loadIncoming() {
+    const response = await fetch('/.netlify/functions/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ action:'list-incoming', receiver_email:userEmail })
+    });
+    const { requests } = await response.json();
+    const container = document.getElementById('incomingRequests');
+    container.innerHTML = '';
+    requests.forEach(req => {
+      const div = document.createElement('div');
+      div.className = 'user';
+      div.innerHTML = `
+        <span>${req.sender_email}</span>
+        <button onclick="respond('${req.id}', 'accepted')">Accept</button>
+        <button onclick="respond('${req.id}', 'rejected')">Reject</button>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  // ---------- Respond to Friend Request ----------
+  window.respond = async function(request_id, status) {
+    const response = await fetch('/.netlify/functions/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ action:'respond', request_id, status })
+    });
+    const data = await response.json();
+    alert(data.success ? `Request ${status}` : data.error);
+    loadIncoming();
+  };
+
+  loadProfile();
+  loadIncoming();
+</script>
+</body>
+</html>
