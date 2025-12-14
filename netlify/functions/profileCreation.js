@@ -16,8 +16,8 @@ export const handler = async (event) => {
       bio,
       profile_picture,
       fbx_avatar_ids,
-      online_status, // new: "online" or "offline"
-      new_password, // new: for changing password
+      online_status, // online/offline
+      new_password,  // for password change
       current_password
     } = JSON.parse(event.body);
 
@@ -43,64 +43,48 @@ export const handler = async (event) => {
     // -----------------------------
     if (step) {
       switch (step) {
-        case 1: // Username + bio
-          if (!username || !bio) {
-            return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Username and bio are required.' }) };
-          }
+        case 1:
+          if (!username || !bio) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Username and bio required.' }) };
           updates.username = username;
           updates.bio = bio;
           break;
-
-        case 2: // Profile picture
-          if (!profile_picture) {
-            return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Profile picture is required.' }) };
-          }
+        case 2:
+          if (!profile_picture) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Profile picture required.' }) };
           updates.profile_picture = profile_picture;
           break;
-
-        case 3: // FBX avatars
-          if (!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length > 3) {
+        case 3:
+          if (!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length > 3)
             return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Must select up to 3 FBX avatars.' }) };
-          }
           updates.fbx_avatar_ids = fbx_avatar_ids;
           break;
-
-        case 4: // Complete profile
+        case 4:
           updates.completed_profile = true;
           break;
-
         default:
           return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid step.' }) };
       }
     }
 
     // -----------------------------
-    // Handle online/offline status
+    // Online/Offline status
     // -----------------------------
     if (online_status) {
-      if (!["online", "offline"].includes(online_status)) {
+      if (!['online', 'offline'].includes(online_status))
         return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid online_status value.' }) };
-      }
       updates.online_status = online_status;
+      updates.last_online = new Date().toISOString(); // optional timestamp update
     }
 
     // -----------------------------
-    // Handle password change
+    // Change password
     // -----------------------------
     if (new_password) {
-      if (!current_password) {
-        return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Current password is required to change password.' }) };
-      }
+      if (!current_password) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Current password required.' }) };
 
-      // Verify current password
       const match = await bcrypt.compare(current_password, user.password);
-      if (!match) {
-        return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Incorrect current password.' }) };
-      }
+      if (!match) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Incorrect current password.' }) };
 
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(new_password, 10);
-      updates.password = hashedPassword;
+      updates.password = await bcrypt.hash(new_password, 10);
     }
 
     // -----------------------------
@@ -115,12 +99,19 @@ export const handler = async (event) => {
 
     if (updateError) throw updateError;
 
+    // Ensure the returned object has all expected fields for frontend
+    const responseUser = {
+      ...user,
+      ...updatedUser,
+      password: undefined // hide password
+    };
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
         message: 'Profile updated successfully!',
-        data: updatedUser
+        user: responseUser
       })
     };
 
