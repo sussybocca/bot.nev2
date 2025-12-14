@@ -2,82 +2,51 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
-// Use Netlify environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Missing required environment variables!");
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export const handler = async (event) => {
   try {
-    // Parse request body
     const { email, password, remember_me } = JSON.parse(event.body);
 
-    // Fetch user from Supabase
+    // Fetch user
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
       .single();
 
-    if (error || !user) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ success: false, error: 'User not found' })
-      };
-    }
+    if (error || !user) return { statusCode: 400, body: JSON.stringify({ success:false, error:'User not found' }) };
 
-    // Compare password
+    // Check password
     const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ success: false, error: 'Incorrect password' })
-      };
-    }
+    if (!match) return { statusCode: 401, body: JSON.stringify({ success:false, error:'Incorrect password' }) };
 
-    // Check if email is verified
-    if (!user.verified) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ success: false, error: 'Email not verified' })
-      };
-    }
+    if (!user.verified) return { statusCode: 403, body: JSON.stringify({ success:false, error:'Email not verified' }) };
 
-    // Generate a simple session token
+    // Generate UUID session token
     const session_token = uuidv4();
+    const expiresInDays = remember_me ? 90 : 1;
+    const expires = new Date(Date.now() + expiresInDays*24*60*60*1000).toUTCString();
 
-    // Optional persistent session in Supabase
-    if (remember_me) {
-      const expires_at = new Date();
-      expires_at.setMonth(expires_at.getMonth() + 3); // 3 months
+    // Save session in Supabase (optional)
+    await supabase.from('sessions').insert({
+      user_email: email,
+      session_token,
+      expires_at: new Date(Date.now() + expiresInDays*24*60*60*1000)
+    });
 
-      await supabase.from('sessions').insert({
-        user_email: email,
-        session_token,
-        expires_at
-      });
-    }
-
-    // Return success with session token (store in localforage on frontend)
+    // Return cookie via header
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        message: 'Login successful!',
-        session_token
-      })
+      headers: {
+        'Set-Cookie': `session_token=${session_token}; Path=/; Max-Age=${expiresInDays*24*60*60}; SameSite=Lax`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ success: true, message: 'Login successful!' })
     };
 
   } catch (err) {
-    console.error("Login error:", err); // full backend error logging
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: err.message || 'Login failed' })
-    };
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ success:false, error: err.message }) };
   }
 };
