@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Login</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 </head>
 <body>
   <h1>Login</h1>
@@ -15,6 +14,12 @@
 <script>
 const output = document.getElementById('output');
 
+// Function to set a cookie
+function setCookie(name, value, days) {
+  const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
 document.getElementById('loginBtn').addEventListener('click', async () => {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -23,24 +28,23 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     const res = await fetch('/.netlify/functions/login', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ email, password, remember_me: true })
+      body: JSON.stringify({ email, password })
     });
 
     const data = await res.json();
 
     if (data.success && data.session_token) {
-      // Store session_token in localforage
-      await localforage.setItem('session_token', data.session_token);
-      await localforage.setItem('user_email', email); // optional for profile page
-
+      // Store session_token in a cookie
+      setCookie('session_token', data.session_token, 1); // expires in 1 day
       output.textContent = "Login successful!";
-      // Redirect to profile page
+      // Redirect to profile page (no need to pass email)
       window.location.href = '/profile.html';
     } else {
       output.textContent = `Error: ${data.error || 'Unknown error'}`;
     }
+
   } catch (err) {
-    console.error("Login fetch error:", err);
+    console.error(err);
     output.textContent = 'Error: Could not reach login server';
   }
 });
