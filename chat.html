@@ -78,6 +78,7 @@ body {
 <div id="sidebar">
   <h3>Chats</h3>
   <div id="chatList">Loading…</div>
+  <button onclick="newChat()">➕ New Chat</button>
   <hr>
   <button onclick="openReactions()">👍 Reactions</button>
   <button onclick="openFiles()">📁 Files</button>
@@ -209,6 +210,29 @@ function openBots() { if(conversationId) fetch(`/.netlify/functions/chat-bots?co
 function toggleMute() { if(conversationId) fetch('/.netlify/functions/chat-mute', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_token:getToken(), conversation_id:conversationId }) }); }
 function kickUser() { const u=prompt("User ID?"); if(u && conversationId) fetch('/.netlify/functions/chat-kick', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_token:getToken(), conversation_id:conversationId, target_user_id:u }) }); }
 function renameChat() { const t=prompt("New chat name?"); if(t && conversationId) fetch('/.netlify/functions/chat-rename', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_token:getToken(), conversation_id:conversationId, new_title:t }) }).then(()=>document.getElementById('chatHeader').textContent=t); }
+
+/* -----------------------
+   NEW CHAT FUNCTION
+----------------------- */
+async function newChat() {
+  const otherUser = prompt("Enter the User ID of the person to chat with:");
+  if (!otherUser) return;
+
+  try {
+    const res = await fetch('/.netlify/functions/chat-create', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ session_token: getToken(), user_ids: [myUserId, otherUser] })
+    });
+    const data = await res.json();
+    if (data.conversation_id) {
+      loadChats(); // refresh chat list
+      openChat(data.conversation_id, data.title || 'New Chat');
+    }
+  } catch (err) {
+    console.error("Failed to create new chat:", err);
+  }
+}
 
 /* -----------------------
    INIT
