@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Boteos Marketplace</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Boteos Marketplace</h1>
+<div id="market-container"></div>
+
+<script type="module">
+  import { loadMarket } from './market.js';
+  import { voteItem } from './voteHandler.js';
+  import { fetchItems } from './fetchItems.js';
+
+  // Replace with the actual logged-in user's email
+  const userEmail = 'test@example.com';
+
+  // Load marketplace items
+  async function initMarketplace() {
+    const items = await fetchItems('boteos'); // Calls getMarketItems.js
+    const container = document.getElementById('market-container');
+
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.classList.add('market-card');
+      card.innerHTML = `
+        <h3>${item.boteo_name}</h3>
+        <p>Votes: <span class="vote-count">${item.votes}</span></p>
+        <button class="upvote">👍</button>
+        <button class="downvote">👎</button>
+        <button class="download">Download</button>
+      `;
+      container.appendChild(card);
+
+      // Voting
+      card.querySelector('.upvote').addEventListener('click', () => voteItem(userEmail, 'boteo', item.id, 1));
+      card.querySelector('.downvote').addEventListener('click', () => voteItem(userEmail, 'boteo', item.id, -1));
+
+      // Download (simulated)
+      card.querySelector('.download').addEventListener('click', () => {
+        alert('Download functionality coming soon!');
+      });
+    });
+  }
+
+  initMarketplace();
+</script>
+</body>
+</html>

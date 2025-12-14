@@ -1,3 +1,5 @@
+// main.js for /page/index.html
+
 const cutscene = document.getElementById('cutscene');
 const startMenu = document.getElementById('start-menu');
 const bgVideo = document.getElementById('bg-video');
@@ -12,7 +14,7 @@ function playCutscene() {
   cutscene.onended = () => {
     cutscene.style.display = 'none';
     bgVideo.style.display = 'block';
-    startMenu.classList.add('show');
+    startMenu.style.display = 'block';
     music.play().catch(() => console.log('Autoplay blocked'));
   };
 }
@@ -34,9 +36,19 @@ function goToMarket(type) {
 }
 
 // Animate emoji cursor
+const emojiCursor = document.createElement('div');
+emojiCursor.style.position = 'fixed';
+emojiCursor.style.pointerEvents = 'none';
+emojiCursor.style.width = '40px';
+emojiCursor.style.height = '40px';
+emojiCursor.style.backgroundImage = "url('emoji_cursor.png')";
+emojiCursor.style.backgroundSize = 'contain';
+emojiCursor.style.zIndex = 1000;
+document.body.appendChild(emojiCursor);
+
 document.addEventListener('mousemove', e => {
-  const cursor = document.body.querySelector('.custom-cursor');
-  // cursor animation logic if needed (e.g., sprite frame change)
+  emojiCursor.style.left = e.clientX + 'px';
+  emojiCursor.style.top = e.clientY + 'px';
 });
 
 // Click to enter fullscreen
@@ -44,5 +56,7 @@ document.addEventListener('click', enableFullscreen);
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  // Hide start menu initially
+  startMenu.style.display = 'none';
   playCutscene();
 });

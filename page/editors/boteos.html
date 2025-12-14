@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Boteos Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="editor-container">
+    <aside class="file-tree" id="fileTree"></aside>
+    <main class="editor-main">
+      <textarea id="codeArea" placeholder="Select or create a Boteo file..."></textarea>
+    </main>
+    <div class="editor-buttons">
+      <button id="saveBtn">Save</button>
+      <button id="backupBtn">Backup</button>
+      <input type="file" id="uploadFolder" webkitdirectory directory multiple />
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderFileTree } from './fileTree.js';
+    import { handleFolderUpload } from './uploadHandler.js';
+    import { saveBoteo, backupBoteo } from './editor.js';
+    import { autosave } from './autosave.js';
+
+    const fileTreeEl = document.getElementById('fileTree');
+    const codeArea = document.getElementById('codeArea');
+    const uploadInput = document.getElementById('uploadFolder');
+    const saveBtn = document.getElementById('saveBtn');
+    const backupBtn = document.getElementById('backupBtn');
+
+    const userEmail = 'test@example.com'; // Replace with logged-in user's email
+
+    // Initialize file tree
+    renderFileTree(fileTreeEl);
+
+    // Folder upload
+    uploadInput.addEventListener('change', async (e) => {
+      const folderData = await handleFolderUpload(e.target.files);
+      console.log('Folder uploaded:', folderData);
+      // Optionally auto-create a new Boteo with this folder
+      await saveBoteo(userEmail, 'New Boteo', folderData, true);
+      renderFileTree(fileTreeEl); // Refresh file tree
+    });
+
+    // Save and backup
+    saveBtn.addEventListener('click', () => saveBoteo(userEmail));
+    backupBtn.addEventListener('click', () => backupBoteo(userEmail));
+
+    // Autosave interval
+    autosave(userEmail, codeArea);
+
+  </script>
+</body>
+</html>
