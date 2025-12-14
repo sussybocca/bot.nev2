@@ -1,0 +1,50 @@
+<h2>Chats</h2>
+<div id="chatList"></div>
+
+<div id="chatBox" style="display:none;">
+  <div id="messages"></div>
+  <input id="msgInput" placeholder="Type message..." />
+  <button onclick="sendMsg()">Send</button>
+</div>
+
+<script>
+let currentChat = null;
+const userId = window.USER_ID; // set from profile
+
+async function loadChats() {
+  const res = await fetch(`/.netlify/functions/chat-list?user_id=${userId}`);
+  const chats = await res.json();
+  document.getElementById('chatList').innerHTML = chats.map(c =>
+    `<div onclick="openChat('${c.conversation_id}')">
+      ${c.conversations.title || 'Private Chat'}
+    </div>`
+  ).join('');
+}
+
+async function openChat(id) {
+  currentChat = id;
+  document.getElementById('chatBox').style.display = 'block';
+  loadMessages();
+}
+
+async function loadMessages() {
+  const res = await fetch(`/.netlify/functions/chat-messages?id=${currentChat}`);
+  const msgs = await res.json();
+  document.getElementById('messages').innerHTML = msgs.map(m =>
+    `<div><b>${m.sender_id}:</b> ${m.content}</div>`
+  ).join('');
+}
+
+async function sendMsg() {
+  const content = msgInput.value;
+  await fetch('/.netlify/functions/chat-send', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ conversation_id: currentChat, sender_id:userId, content })
+  });
+  msgInput.value='';
+  loadMessages();
+}
+
+loadChats();
+</script>
