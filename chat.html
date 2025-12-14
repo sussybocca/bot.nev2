@@ -122,10 +122,14 @@ body {
 /* -----------------------
    SUPABASE SETUP
 ----------------------- */
-const supabase = supabaseJs.createClient(
-  'YOUR_SUPABASE_URL',
-  'YOUR_PUBLIC_ANON_KEY'
+// /.netlify/functions/_supabase.js
+import { createClient } from '@supabase/supabase-js';
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY // Use a service role key in env, never frontend
 );
+
 
 let conversationId = null;
 let channel = null;
