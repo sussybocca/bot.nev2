@@ -77,4 +77,93 @@ You’ve defined tables for:
 ---
 
 ## 📁 Project Structure
+/
+├─ index.html # Main landing/auth
+├─ marketplace.html # Marketplace
+├─ explore.html # Explore page
+├─ profile.html # User profile
+├─ friend-requests.html # Friend management
+├─ chat.html # Chat UI
+|
+├─ page/ # Immersive Platform UI
+│ ├─ index.html
+│ ├─ main.js
+│ ├─ style.css
+│ ├─ editors/
+│ └─ marketplaces/
+|
+├─ assets/ # Media (videos, audio, animations)
+|
+├─ netlify/functions/ # Serverless backend
+│ ├─ manageItem.js
+│ ├─ vote.js
+│ ├─ getMarketItems.js
+│ ├─ getEditorItem.js
+│ ├─ uploadFolder.js
+│ └─ backupItem.js
+|
+├─ supabaseClient.js # Shared Supabase client
+└─ README.md # This file
 
+
+---
+
+## 🎮 Highlights
+
+### Immersive Platform Start
+- Fullscreen animated background
+- User-triggered cutscene
+- Settings panel (video/music toggles)
+- Animated cursor
+- Gateway to creation tools
+
+### Editors
+Three core editors (future extensible):
+- **Boteos Editor** — bot creator
+- **Projects Editor** — project file editing
+- **Web Apps Editor** — full web app creator
+
+Editors support:
+- File tree navigation
+- Syntax highlighting
+- Upload and backup capabilities
+
+### Marketplaces
+Each type has its own marketplace:
+- Boteos
+- Projects
+- Web Apps
+
+Marketplaces support voting, listing, and download hooks.
+
+---
+
+## 🔧 Installation & Setup
+
+1. **Clone the Repo**
+   ```bash
+   git clone https://github.com/sussybocca/bot.nev2.git
+
+
+Install Dependencies
+None required for frontend — everything is static + serverless.
+
+Set Up Supabase
+Connect your Supabase project and configure:
+
+URL
+
+API Key
+
+Database tables as defined
+
+Deploy
+
+⚡ Netlify (recommended)
+
+Make sure netlify.toml is configured
+
+Run Locally
+Use Netlify Dev for local functions testing:
+
+netlify dev
