@@ -11,9 +11,10 @@
   <button id="loginBtn">Login</button>
   <div id="output"></div>
 
- <script>
+<script>
 const output = document.getElementById('output');
 
+// Function to set cookie
 function setCookie(name, value, days) {
   const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
   document.cookie = `${name}=${value}; expires=${expires}; path=/`;
@@ -23,22 +24,26 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
 
-  const res = await fetch('/.netlify/functions/login', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({email, password})
-  });
+  try {
+    const res = await fetch('/.netlify/functions/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.success && data.token) {
-    // Store JWT in a cookie for profile page
-    setCookie('jwt', data.token, 1); // expires in 1 day
-    output.textContent = "Login successful!";
-   window.location.href = '/profile.html?email='+encodeURIComponent(email);
-
-  } else {
-    output.textContent = `Error: ${data.error}`;
+    if (data.success && data.session_token) { // <-- use session_token
+      setCookie('jwt', data.session_token, 1); // store JWT
+      output.textContent = "Login successful!";
+      // Redirect to profile page
+      window.location.href = '/profile.html?email=' + encodeURIComponent(email);
+    } else {
+      output.textContent = `Error: ${data.error || 'Unknown error'}`;
+    }
+  } catch (err) {
+    console.error(err);
+    output.textContent = 'Error: Could not reach login server';
   }
 });
 </script>
