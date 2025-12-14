@@ -75,19 +75,43 @@
   // -----------------------
   // PROFILE
   // -----------------------
-  async function loadProfile(){
-    try {
-      const res = await fetch('/.netlify/functions/profileCreation', {
-        method:'POST',
-        body: JSON.stringify({ email: userEmail })
-      });
-      const user = await res.json();
-      const div = document.getElementById('profile');
-      const online = (Date.now() - new Date(user.last_online)) < 5*60*1000 ? 'online' : 'offline';
-      div.innerHTML = `<img src="${user.profile_picture || 'default.png'}" />
-                       <span>${user.username || user.email} - <span class="${online}">${online}</span></span>`;
-    } catch(e){ console.error('Failed to load profile', e); }
+async function loadProfile() {
+  try {
+    // Call your Netlify/Supabase function to get full user data
+    const res = await fetch('/.netlify/functions/profileCreation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail })
+    });
+
+    const result = await res.json();
+    
+    if (!result.success) throw new Error(result.error || 'Failed to fetch user');
+
+    const user = result.data; // updated user object from Supabase
+    const div = document.getElementById('profile');
+    
+    // Compute online/offline status
+    const online = (Date.now() - new Date(user.last_online)) < 5 * 60 * 1000 ? 'online' : 'offline';
+
+    // Use profile_picture from Supabase, fallback to DiceBear dynamic avatar if missing
+    const avatarUrl = user.profile_picture 
+      || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
+
+    div.innerHTML = `
+      <img src="${avatarUrl}" alt="Profile Picture" />
+      <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
+    `;
+
+  } catch (e) {
+    console.error('Failed to load profile', e);
+    const div = document.getElementById('profile');
+    div.innerHTML = `
+      <img src="https://via.placeholder.com/50" alt="Profile Picture" />
+      <span>${userEmail} - <span class="offline">offline</span></span>
+    `;
   }
+}
 
   // -----------------------
   // FRIEND REQUESTS
@@ -197,3 +221,4 @@
 </script>
 </body>
 </html>
+
