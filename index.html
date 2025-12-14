@@ -23,6 +23,29 @@
   .links-container a:hover { background:#007bff; color:#fff; }
   #incomingRequests div { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:5px; background:#fff; border-radius:5px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
   #incomingRequests div button { margin-left:5px; padding:3px 8px; }
+
+  /* =========================
+     CHAT FLOATING BUBBLE
+     ========================= */
+  #chatBubble {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 9999;
+  }
+  #chatBubble span { font-size: 10px; margin-top: 2px; max-width: 55px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #chatBadge { position: absolute; top: 6px; right: 6px; background: red; color: white; font-size: 10px; padding: 2px 6px; border-radius: 50%; display: none; }
 </style>
 </head>
 <body>
@@ -64,6 +87,12 @@
   </nav>
 </div>
 
+<div id="chatBubble" onclick="openChat()">
+  💬
+  <span id="chatUsername">Chat</span>
+  <div id="chatBadge">!</div>
+</div>
+
 <script>
   // -----------------------
   // GET SESSION TOKEN
@@ -82,13 +111,11 @@
     try {
       const token = getSessionToken();
       if(!token) throw new Error('No session token found');
-
       const res = await fetch('/.netlify/functions/profileCreation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_token: token })
       });
-
       const result = await res.json();
       if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
@@ -100,12 +127,15 @@
       const avatarUrl = user.profile_picture?.startsWith('data:') 
         ? user.profile_picture 
         : `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
-
       div.innerHTML = `
         <img src="${avatarUrl}" alt="Profile Picture" />
         <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
       `;
-    } catch (e) {
+
+      const chatUser = document.getElementById('chatUsername');
+      if(chatUser) chatUser.textContent = user.username || user.email;
+
+    } catch(e) {
       console.error('Failed to load profile', e);
     }
   }
@@ -125,7 +155,6 @@
           session_token: token
         })
       });
-
       const data = await res.json();
       const container = document.getElementById('incomingRequests');
       container.innerHTML = '';
@@ -136,7 +165,7 @@
           <button onclick="respond('${req.id}','rejected')">Reject</button>`;
         container.appendChild(div);
       });
-    } catch(e){ console.error(e); }
+    } catch(e) { console.error(e); }
   }
 
   window.respond = async (id,status)=>{
@@ -197,11 +226,11 @@
       voiceSelect.innerHTML = '<option value="">Select Voice</option>';
       voices.forEach(v=>{
         const opt = document.createElement('option');
-        opt.value=v.id; 
-        opt.textContent=`${v.name} (${v.lang})`; 
+        opt.value=v.id;
+        opt.textContent=`${v.name} (${v.lang})`;
         voiceSelect.appendChild(opt);
       });
-    }catch(err){
+    } catch(err){
       voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
       console.error(err);
     }
@@ -212,9 +241,9 @@
     {id:'model2',name:'Robot Model'}
   ];
   fbxModels.forEach(m=>{
-    const opt = document.createElement('option'); 
-    opt.value=m.id; 
-    opt.textContent=m.name; 
+    const opt = document.createElement('option');
+    opt.value=m.id;
+    opt.textContent=m.name;
     fbxSelect.appendChild(opt);
   });
 
@@ -255,11 +284,18 @@
         <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
       output.className='output success'; 
       form.reset();
-    }catch(err){
+    } catch(err){
       output.textContent='Failed to create bot.'; 
       output.className='output error';
     }
   });
+
+  // -----------------------
+  // CHAT NAV
+  // -----------------------
+  function openChat() {
+    window.location.href = '/chat.html';
+  }
 
   // -----------------------
   // INITIAL LOAD
