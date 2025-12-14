@@ -85,18 +85,19 @@ async function loadProfile() {
     });
 
     const result = await res.json();
-    
+
     if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
     const user = result.data; // updated user object from Supabase
     const div = document.getElementById('profile');
-    
+
     // Compute online/offline status
     const online = (Date.now() - new Date(user.last_online)) < 5 * 60 * 1000 ? 'online' : 'offline';
 
-    // Use profile_picture from Supabase, fallback to DiceBear dynamic avatar if missing
-    const avatarUrl = user.profile_picture 
-      || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
+    // Use profile_picture from Supabase if present, otherwise fallback to DiceBear initials avatar
+    const avatarUrl = user.profile_picture && user.profile_picture.startsWith('data:')
+      ? user.profile_picture
+      : `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
 
     div.innerHTML = `
       <img src="${avatarUrl}" alt="Profile Picture" />
@@ -112,6 +113,7 @@ async function loadProfile() {
     `;
   }
 }
+
 
   // -----------------------
   // FRIEND REQUESTS
@@ -221,4 +223,5 @@ async function loadProfile() {
 </script>
 </body>
 </html>
+
 
