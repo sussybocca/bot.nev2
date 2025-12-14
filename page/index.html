@@ -4,63 +4,109 @@
 <meta charset="UTF-8">
 <title>Platform Start Menu</title>
 <link rel="stylesheet" href="style.css">
+
 <style>
-  html, body { margin: 0; padding: 0; overflow: hidden; font-family: Arial, sans-serif; }
-  #bg-video { position: fixed; top:0; left:0; width:100vw; height:100vh; object-fit: cover; z-index:-2; }
-  #cutscene { position: fixed; top:0; left:0; width:100vw; height:100vh; object-fit: cover; z-index:-1; display:none; }
-  #music { display:none; }
-  #start-menu {
-    position: absolute;
-    top:50%; left:50%;
-    transform: translate(-50%, -50%);
-    text-align:center;
-    z-index:10;
-  }
-  #start-menu button {
-    display:block; margin: 15px auto; padding:15px 25px;
-    font-size: 1.2rem; cursor:pointer; border-radius:8px;
-    border:none; background:rgba(255,255,255,0.8); transition: 0.3s;
-  }
-  #start-menu button:hover { background: rgba(255,255,255,1); }
-  body.custom-cursor { cursor: url('emoji_cursor.png'), auto; }
-  #settings-panel {
-    position: absolute;
-    top: 10px; left: 10px;
-    background: rgba(255,255,255,0.9);
-    padding: 10px 15px;
-    border-radius: 8px;
-    z-index: 20;
-  }
-  #settings-panel label { display:block; margin-top:10px; }
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: black;
+}
+
+#bg-video, #cutscene {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+#bg-video { z-index: -2; }
+#cutscene { z-index: -1; display: none; }
+
+#start-menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 10;
+  display: none;
+}
+
+#start-menu button {
+  display: block;
+  margin: 15px auto;
+  padding: 15px 25px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.85);
+  transition: 0.3s;
+}
+
+#start-menu button:hover {
+  background: white;
+}
+
+body.custom-cursor {
+  cursor: url('emoji_cursor.png'), auto;
+}
+
+#settings-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255,255,255,0.95);
+  padding: 12px 16px;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+#settings-panel label {
+  display: block;
+  margin-top: 8px;
+}
 </style>
 </head>
+
 <body class="custom-cursor">
 
-<video id="bg-video" autoplay loop muted>
+<!-- Background video (allowed to autoplay because muted) -->
+<video id="bg-video" autoplay loop muted playsinline>
   <source src="assets/bg.mp4" type="video/mp4">
 </video>
 
-<video id="cutscene">
+<!-- Cutscene (user-triggered) -->
+<video id="cutscene" playsinline>
   <source src="assets/animations/startCutscene/Cutscene.mp4" type="video/mp4">
 </video>
 
+<!-- Music (user-triggered) -->
 <audio id="music" loop>
   <source src="assets/music.mp3" type="audio/mpeg">
 </audio>
 
+<!-- Settings -->
 <div id="settings-panel">
   <label>
     <input type="checkbox" id="bgToggle" checked>
-    Play Background Video
+    Background Video
   </label>
+
   <label>
     <input type="checkbox" id="musicToggle" checked>
-    Play Music
+    Music
   </label>
-  <button id="playCutsceneBtn">Play Cutscene</button>
+
+  <button id="playCutsceneBtn">▶ Play Cutscene</button>
 </div>
 
-<div id="start-menu" style="display:none;">
+<!-- Start Menu -->
+<div id="start-menu">
   <h1>Welcome to Platform</h1>
   <button onclick="goToEditor('boteos')">Boteos Editor</button>
   <button onclick="goToEditor('projects')">Projects Editor</button>
@@ -70,44 +116,70 @@
   <button onclick="goToMarket('webapps')">Web Apps Marketplace</button>
 </div>
 
-<script src="main.js"></script>
 <script>
-const cutscene = document.getElementById('cutscene');
 const bgVideo = document.getElementById('bg-video');
+const cutscene = document.getElementById('cutscene');
 const music = document.getElementById('music');
 const startMenu = document.getElementById('start-menu');
-const playCutsceneBtn = document.getElementById('playCutsceneBtn');
+
 const bgToggle = document.getElementById('bgToggle');
 const musicToggle = document.getElementById('musicToggle');
+const playCutsceneBtn = document.getElementById('playCutsceneBtn');
 
-// Toggle background video
+/* ---------- TOGGLES ---------- */
+
 bgToggle.addEventListener('change', () => {
-  bgVideo.style.display = bgToggle.checked ? 'block' : 'none';
-  if(bgToggle.checked && bgVideo.paused) bgVideo.play();
-  if(!bgToggle.checked) bgVideo.pause();
+  if (bgToggle.checked) {
+    bgVideo.style.display = 'block';
+    bgVideo.play().catch(()=>{});
+  } else {
+    bgVideo.pause();
+    bgVideo.style.display = 'none';
+  }
 });
 
-// Toggle music
 musicToggle.addEventListener('change', () => {
-  if(musicToggle.checked) music.play().catch(()=>{});
-  else music.pause();
+  if (musicToggle.checked) {
+    music.play().catch(()=>{});
+  } else {
+    music.pause();
+  }
 });
 
-// Play cutscene when button is clicked
-playCutsceneBtn.addEventListener('click', () => {
-  cutscene.style.display = 'block';
-  if(bgToggle.checked) bgVideo.style.display = 'none';
-  cutscene.muted = false;
-  cutscene.play().catch(()=>{ alert('Play was blocked, click again!'); });
+/* ---------- CUTSCENE ---------- */
+
+playCutsceneBtn.addEventListener('click', async () => {
+  try {
+    cutscene.style.display = 'block';
+    bgVideo.style.display = 'none';
+
+    cutscene.currentTime = 0;
+    cutscene.muted = false;
+
+    await cutscene.play();
+
+    // Music starts AFTER user interaction
+    if (musicToggle.checked) {
+      music.play().catch(()=>{});
+    }
+  } catch (err) {
+    alert('Browser blocked playback. Click the button again.');
+    console.error(err);
+  }
 });
 
-// After cutscene ends
-cutscene.onended = () => {
+cutscene.addEventListener('ended', () => {
   cutscene.style.display = 'none';
-  if(bgToggle.checked) bgVideo.style.display = 'block';
-  if(musicToggle.checked) music.play().catch(()=>{});
+
+  if (bgToggle.checked) {
+    bgVideo.style.display = 'block';
+    bgVideo.play().catch(()=>{});
+  }
+
   startMenu.style.display = 'block';
-};
+});
+
+/* ---------- NAV ---------- */
 
 function goToEditor(type) {
   window.location.href = `/platform/editors/${type}.html`;
@@ -117,7 +189,8 @@ function goToMarket(type) {
   window.location.href = `/platform/marketplaces/${type}.html`;
 }
 
-// Keep full screen on click
+/* ---------- FULLSCREEN ---------- */
+
 document.addEventListener('click', () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(()=>{});
