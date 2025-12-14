@@ -3,8 +3,16 @@ import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const JWT_SECRET = process.env.JWT_SECRET || 'replace_this_with_a_real_secret';
+// Use Netlify environment variables
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!SUPABASE_URL || !SUPABASE_KEY || !JWT_SECRET) {
+  throw new Error("Missing required environment variables!");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const handler = async (event) => {
   try {
@@ -34,14 +42,14 @@ export const handler = async (event) => {
 
     // Generate JWT token
     const tokenPayload = { email: user.email, username: user.username };
-    const tokenOptions = remember_me ? { expiresIn: '90d' } : { expiresIn: '1d' }; // 1 day default
+    const tokenOptions = remember_me ? { expiresIn: '90d' } : { expiresIn: '1d' };
     const token = jwt.sign(tokenPayload, JWT_SECRET, tokenOptions);
 
-    // Optionally save session token in DB if you want persistent sessions
+    // Optionally save session token in DB if persistent session
     if (remember_me) {
       const session_token = uuidv4();
       const expires_at = new Date();
-      expires_at.setMonth(expires_at.getMonth() + 3); // 3 months persistent
+      expires_at.setMonth(expires_at.getMonth() + 3);
 
       await supabase.from('sessions').insert({
         user_email: email,
@@ -55,12 +63,15 @@ export const handler = async (event) => {
       body: JSON.stringify({
         success: true,
         message: 'Login successful!',
-        token // return JWT for frontend
+        token // JWT for frontend
       })
     };
 
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Login failed' }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ success: false, error: 'Login failed' })
+    };
   }
 };
