@@ -64,37 +64,39 @@
 
 <script>
   // -----------------------
-  // AUTO LOGIN DEMO
+  // USE SESSION TOKEN
   // -----------------------
-  let userEmail = localStorage.getItem('userEmail');
-  if(!userEmail){
-    userEmail = prompt('Enter your email for demo auto-login:');
-    localStorage.setItem('userEmail', userEmail);
-  }
+const jwtToken = getCookie('jwt'); // or wherever you store it
+const res = await fetch('/.netlify/functions/profileCreation', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${jwtToken}`
+  },
+  body: JSON.stringify({})
+});
 
-  // -----------------------
-  // PROFILE
-  // -----------------------
+ // PROFILE
 async function loadProfile() {
   try {
-    // Call your Netlify/Supabase function to get full user data
+    const jwtToken = getCookie('jwt');
     const res = await fetch('/.netlify/functions/profileCreation', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: userEmail })
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwtToken}`
+      }
     });
 
     const result = await res.json();
-
     if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
-    const user = result.data; // updated user object from Supabase
+    const user = result.user;
+    window.userEmail = user.email;
+
+    // Render profile
     const div = document.getElementById('profile');
-
-    // Compute online/offline status
     const online = (Date.now() - new Date(user.last_online)) < 5 * 60 * 1000 ? 'online' : 'offline';
-
-    // Use profile_picture from Supabase if present, otherwise fallback to DiceBear initials avatar
     const avatarUrl = user.profile_picture && user.profile_picture.startsWith('data:')
       ? user.profile_picture
       : `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
@@ -103,31 +105,24 @@ async function loadProfile() {
       <img src="${avatarUrl}" alt="Profile Picture" />
       <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
     `;
-
   } catch (e) {
     console.error('Failed to load profile', e);
-    const div = document.getElementById('profile');
-    div.innerHTML = `
-      <img src="https://via.placeholder.com/50" alt="Profile Picture" />
-      <span>${userEmail} - <span class="offline">offline</span></span>
-    `;
   }
 }
-
 
   // -----------------------
   // FRIEND REQUESTS
   // -----------------------
-  async function loadIncoming(){
+  async function loadIncoming() {
     try {
       const res = await fetch('/.netlify/functions/friend-requests', {
         method:'POST',
-        body: JSON.stringify({ action:'list', user_email:userEmail })
+        body: JSON.stringify({ action:'list', user_email: window.userEmail })
       });
       const data = await res.json();
       const container = document.getElementById('incomingRequests');
       container.innerHTML = '';
-      data.forEach(req=>{
+      data.forEach(req => {
         const div = document.createElement('div');
         div.innerHTML = `<span>${req.sender_email}</span>
           <button onclick="respond('${req.id}','accepted')">Accept</button>
@@ -151,7 +146,7 @@ async function loadProfile() {
     const receiver_email = document.getElementById('friendEmail').value;
     const res = await fetch('/.netlify/functions/friend-requests',{
       method:'POST',
-      body:JSON.stringify({ action:'send', sender_email:userEmail, receiver_email })
+      body:JSON.stringify({ action:'send', sender_email:window.userEmail, receiver_email })
     });
     const data = await res.json();
     alert(data.success ? 'Request sent!' : data.error);
@@ -169,7 +164,7 @@ async function loadProfile() {
   const createBotPath = '/.netlify/functions/overpoweredbot';
   const voicesPath = '/.netlify/functions/get-voices';
 
-  async function loadVoices(){
+  async function loadVoices() {
     try{
       const res = await fetch(voicesPath);
       const voices = await res.json();
@@ -219,9 +214,7 @@ async function loadProfile() {
   });
 
   // INITIAL LOAD
-  loadProfile(); loadIncoming(); loadVoices();
+  loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
-
-
