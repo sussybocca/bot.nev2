@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Signup — Botnev</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
-    h1 { color:#333; }
-    input, button { width:100%; max-width:400px; margin:10px 0; padding:10px; font-size:16px; border-radius:5px; border:1px solid #ccc; }
-    button { background:#007bff; color:white; border:none; cursor:pointer; }
-    button:hover { background:#0056b3; }
-    #output { margin-top:20px; font-family:monospace; padding:10px; border-radius:6px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signup — Botnev</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
+  h1 { color:#333; }
+  input, a { width:100%; max-width:400px; margin:10px 0; padding:10px; font-size:16px; border-radius:5px; border:1px solid #ccc; display:block; text-decoration:none; text-align:center; }
+  a { background:#007bff; color:white; cursor:pointer; }
+  a:hover { background:#0056b3; }
+  #output { margin-top:20px; font-family:monospace; padding:10px; border-radius:6px; }
+</style>
 </head>
 <body>
 
@@ -21,8 +21,8 @@
 <input type="email" id="email" placeholder="Email" required />
 <input type="password" id="password" placeholder="Password" required />
 
-<!-- Signup Button -->
-<button id="signupBtn">Signup</button>
+<!-- Signup Link -->
+<a href="#" id="signupBtn">🎞️ Signup</a>
 
 <!-- Output / Verification -->
 <div id="output"></div>
@@ -31,11 +31,11 @@
 const output = document.getElementById('output');
 
 document.getElementById('signupBtn').addEventListener('click', async (e) => {
-  e.preventDefault(); // prevent redirect
+  e.preventDefault(); // prevent <a> navigation
 
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
-  const username = email.split('@')[0]; // optional: generate username
+  const username = email.split('@')[0]; // auto username
 
   if (!email || !password) {
     output.textContent = "Enter email and password.";
@@ -55,11 +55,17 @@ document.getElementById('signupBtn').addEventListener('click', async (e) => {
       output.innerHTML = `
         Verification code sent! Check your email.<br>
         <input id="codeInput" placeholder="Enter verification code" />
-        <button id="verifyBtn">Verify</button>
+        <a href="#" id="verifyBtn">Verify</a>
       `;
 
-      document.getElementById('verifyBtn').addEventListener('click', async () => {
+      document.getElementById('verifyBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
         const code = document.getElementById('codeInput').value.trim();
+        if (!code) {
+          output.textContent = "Enter the verification code.";
+          return;
+        }
+
         const verifyRes = await fetch('/.netlify/functions/verify', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
