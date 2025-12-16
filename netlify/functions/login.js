@@ -1,14 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-
-import { verifyCaptcha } from './verifyCaptcha.js';
 import { checkRateLimit, logAttempt } from './rateLimit.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
+
+// Inline CAPTCHA verification using your backend secret key
+async function verifyCaptcha(token, ip) {
+  if (!token) return false;
+
+  const secret = process.env.CAPTCHA_SECRET_KEY;
+
+  const res = await fetch('https://hcaptcha.com/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `secret=${secret}&response=${token}&remoteip=${ip}`
+  });
+
+  const data = await res.json();
+  return data.success === true;
+}
 
 export const handler = async (event) => {
   try {
@@ -47,7 +61,6 @@ export const handler = async (event) => {
 
     // ⚠ Google login branch
     if (google) {
-      // Instead of normal login, frontend will redirect to Google OAuth
       return {
         statusCode: 200,
         body: JSON.stringify({
@@ -57,7 +70,7 @@ export const handler = async (event) => {
       };
     }
 
-    // 🔐 Normal login flow (unchanged)
+    // 🔐 Normal login flow
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
