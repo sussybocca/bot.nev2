@@ -11,7 +11,7 @@ export const handler = async (event) => {
     const code = event.queryStringParameters?.code;
     if (!code) return { statusCode: 400, body: 'Missing code' };
 
-    const redirectUri = `${process.env.SITE_URL}/.netlify/functions/googleCallback`;
+    const redirectUri = `${process.env.SITE_URL}`;
 
     // 🔐 Exchange code for token
     const params = new URLSearchParams({
