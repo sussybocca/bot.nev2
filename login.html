@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Login</title>
+  <!-- hCaptcha script -->
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
   <h1>Login</h1>
@@ -12,22 +14,37 @@
   <label>
     <input type="checkbox" id="rememberMe" /> Remember Me
   </label><br>
+
+  <!-- hCaptcha widget -->
+  <div class="h-captcha" data-sitekey="2b1cc900-c846-40e8-bf32-dbeeeec2d1c0"></div><br>
+
+  <!-- Login & Google buttons -->
   <button id="loginBtn">Login</button>
+  <button id="googleBtn">Login with Google</button>
+
   <div id="output"></div>
 
 <script>
 const output = document.getElementById('output');
 
-// Optional: frontend cookie setter (can rely on backend Set-Cookie instead)
+// Optional: frontend cookie setter (backend already sets it)
 function setCookie(name, value, days) {
   const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
   document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
+// Normal email/password login
 document.getElementById('loginBtn').addEventListener('click', async () => {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
   const remember_me = document.getElementById('rememberMe').checked;
+
+  // Get hCaptcha token
+  const captcha_token = hcaptcha.getResponse();
+  if (!captcha_token) {
+    output.textContent = "Please complete the CAPTCHA.";
+    return;
+  }
 
   if (!email || !password) {
     output.textContent = "Please enter both email and password.";
@@ -38,24 +55,44 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     const res = await fetch('/.netlify/functions/login', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ email, password, remember_me })
+      body: JSON.stringify({ email, password, remember_me, captcha_token })
     });
 
     const data = await res.json();
 
     if (data.success && data.session_token) {
-      // Optional: set cookie on frontend (the backend already sets it)
       setCookie('session_token', data.session_token, remember_me ? 90 : 1);
-
-      // Show success message briefly before redirect
       output.textContent = data.message || "Login successful!";
       setTimeout(() => {
         window.location.href = '/profile.html?email=' + encodeURIComponent(email);
       }, 500);
+    } else if (data.redirect) {
+      // Redirect for Google login
+      window.location.href = data.redirect;
     } else {
       output.textContent = `Error: ${data.error || 'Unknown error'}`;
     }
 
+  } catch (err) {
+    console.error(err);
+    output.textContent = 'Error: Could not reach login server';
+  }
+});
+
+// Google login button
+document.getElementById('googleBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/.netlify/functions/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ google: true })
+    });
+    const data = await res.json();
+    if (data.redirect) {
+      window.location.href = data.redirect;
+    } else {
+      output.textContent = "Google login failed.";
+    }
   } catch (err) {
     console.error(err);
     output.textContent = 'Error: Could not reach login server';
