@@ -1,6 +1,6 @@
 export const handler = async () => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = `${process.env.SITE_URL}/.netlify/functions/googleCallback`;
+  const redirectUri = `${process.env.SITE_URL}`;
 
   const scope = encodeURIComponent(
     'openid email profile'
