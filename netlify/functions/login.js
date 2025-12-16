@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
-import { verifyCaptcha } from './utils/verifyCaptcha.js';
-import { checkRateLimit, logAttempt } from './utils/rateLimit.js';
+import { verifyCaptcha } from './verifyCaptcha.js';
+import { checkRateLimit, logAttempt } from './rateLimit.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
