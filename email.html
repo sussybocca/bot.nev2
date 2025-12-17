@@ -62,6 +62,18 @@
       min-height: 20px;
       white-space: pre-wrap;
     }
+    #inbox {
+      margin-top: 30px;
+    }
+    .email {
+      border: 1px solid #00ff00;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .email strong {
+      display: inline-block;
+      width: 80px;
+    }
   </style>
 </head>
 <body>
@@ -79,8 +91,10 @@
     <textarea id="body" placeholder="Type your email..."></textarea>
 
     <button id="sendBtn">Send Email</button>
-
     <div id="output"></div>
+
+    <h2>Inbox</h2>
+    <div id="inbox">Loading emails...</div>
   </main>
 
   <script>
@@ -89,6 +103,7 @@
     const bodyInput = document.getElementById('body');
     const sendBtn = document.getElementById('sendBtn');
     const output = document.getElementById('output');
+    const inboxDiv = document.getElementById('inbox');
 
     // Function to get session token from cookie
     function getSessionToken() {
@@ -148,12 +163,53 @@
         output.textContent = 'Email sent successfully!';
         subjectInput.value = '';
         bodyInput.value = '';
+        loadInbox(); // Refresh inbox after sending
       } else {
         output.textContent = 'Error: ' + (data.error || 'Unknown error');
       }
     });
 
+    // Load inbox emails
+    async function loadInbox() {
+      const session_token = getSessionToken();
+      if (!session_token) {
+        inboxDiv.textContent = 'No session found';
+        return;
+      }
+
+      const res = await fetch('/.netlify/functions/getEmails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        inboxDiv.textContent = 'Failed to load emails';
+        return;
+      }
+
+      if (data.emails.length === 0) {
+        inboxDiv.textContent = 'No emails';
+        return;
+      }
+
+      inboxDiv.innerHTML = '';
+      data.emails.forEach(e => {
+        const emailDiv = document.createElement('div');
+        emailDiv.className = 'email';
+        emailDiv.innerHTML = `
+          <div><strong>From:</strong> ${e.from_user}</div>
+          <div><strong>Subject:</strong> ${e.subject || '(No subject)'}</div>
+          <div><strong>Received:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+          <div>${e.body}</div>
+        `;
+        inboxDiv.appendChild(emailDiv);
+      });
+    }
+
     loadUsers();
+    loadInbox();
   </script>
 </body>
 </html>
