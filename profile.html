@@ -14,12 +14,14 @@ button { padding: 10px 15px; margin-top: 10px; }
 .fbx-options div { padding: 10px; border: 1px solid #ccc; cursor: pointer; border-radius: 5px; }
 .fbx-options div.selected { border-color: #28a745; background: #e6ffe6; }
 #message { margin-top:20px; color: #333; }
+#profile-preview { max-width:150px; display:block; margin-top:10px; }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>Create Your Profile</h1>
 
+<!-- Step 1 -->
 <div class="step active" id="step-1">
   <h2>Step 1: Username & Bio</h2>
   <input type="text" id="username" placeholder="Username" />
@@ -27,12 +29,15 @@ button { padding: 10px 15px; margin-top: 10px; }
   <button onclick="nextStep()">Next</button>
 </div>
 
+<!-- Step 2 -->
 <div class="step" id="step-2">
   <h2>Step 2: Profile Picture</h2>
   <input type="file" id="profile-picture" accept="image/*" />
+  <img id="profile-preview" />
   <button onclick="nextStep()">Next</button>
 </div>
 
+<!-- Step 3 -->
 <div class="step" id="step-3">
   <h2>Step 3: Pick FBX Avatars (max 3)</h2>
   <div class="fbx-options" id="fbx-options">
@@ -44,6 +49,7 @@ button { padding: 10px 15px; margin-top: 10px; }
   <button onclick="nextStep()">Next</button>
 </div>
 
+<!-- Step 4 -->
 <div class="step" id="step-4">
   <h2>Step 4: Finish</h2>
   <button onclick="finishProfile()">Complete Profile</button>
@@ -56,7 +62,7 @@ button { padding: 10px 15px; margin-top: 10px; }
 let currentStep = 1;
 let fbxSelected = [];
 
-// Session token
+// Session token from cookie
 function getSessionToken() {
   const match = document.cookie.match(/session_token=([^;]+)/);
   return match ? match[1] : null;
@@ -75,16 +81,18 @@ document.querySelectorAll('.fbx-options div').forEach(el => {
   });
 });
 
+// Show active step
 function showStep(step){
   document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
   const stepEl = document.getElementById(`step-${step}`);
   if(stepEl) stepEl.classList.add('active');
 }
 
-// Send data to backend
+// Send step data to backend
 async function sendStepData(step,data){
   const session_token = getSessionToken();
   if(!session_token) { alert("No session token found"); return; }
+
   const res = await fetch('/.netlify/functions/profileCreation',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -96,31 +104,47 @@ async function sendStepData(step,data){
 // Next step
 async function nextStep(){
   let data = {};
+
   if(currentStep===1){
     const username=document.getElementById('username').value.trim();
     const bio=document.getElementById('bio').value.trim();
     if(!username||!bio){ alert("Enter username and bio"); return; }
     data={username,bio};
+
   } else if(currentStep===2){
     const fileInput=document.getElementById('profile-picture');
     if(fileInput.files.length===0){ alert("Upload a profile picture"); return; }
-    const reader=new FileReader();
-    await new Promise(resolve=>reader.onload=()=>{data.profile_picture=reader.result;resolve();});
-    reader.readAsDataURL(fileInput.files[0]);
+
+    const file = fileInput.files[0];
+    data.profile_picture = await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject("Failed to read file");
+      reader.readAsDataURL(file);
+    });
+
+    // Show preview
+    document.getElementById('profile-preview').src = data.profile_picture;
+
   } else if(currentStep===3){
     if(fbxSelected.length===0){ alert("Select at least 1 FBX avatar"); return; }
-    data={fbx_avatar_ids:fbxSelected};
+    data = { fbx_avatar_ids: fbxSelected };
   }
 
   const response = await sendStepData(currentStep,data);
   document.getElementById('message').innerText = response.message || response.error;
-  if(response.success){ currentStep++; showStep(currentStep); }
+
+  if(response.success){
+    currentStep++;
+    showStep(currentStep);
+  }
 }
 
 // Finish profile
 async function finishProfile(){
   const response = await sendStepData(currentStep,{});
   document.getElementById('message').innerText=response.message || response.error;
+
   if(response.success){
     alert("Profile created successfully!");
     window.location.href='/marketplace.html';
