@@ -6,23 +6,9 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.0/dist/jszip.min.js"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: white;
-      padding: 20px;
-    }
-    input, button {
-      padding: 10px;
-      margin: 10px 0;
-      width: 100%;
-    }
-    iframe {
-      width: 100%;
-      height: 400px;
-      border: 1px solid #333;
-      margin-top: 20px;
-    }
+    body { font-family: sans-serif; background: #111; color: white; padding: 20px; }
+    input, button { padding: 10px; margin: 10px 0; width: 100%; }
+    iframe { width: 100%; height: 400px; border: 1px solid #333; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -37,9 +23,9 @@
 <iframe id="previewFrame"></iframe>
 
 <script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js'
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js';
 
-  // Initialize Supabase
+  // Initialize Supabase (keys should be safe, do not push publicly)
   const supabase = createClient(
     'YOUR_SUPABASE_URL',
     'YOUR_SUPABASE_KEY'
@@ -57,51 +43,43 @@
       alert('Please provide site name and ZIP file.');
       return;
     }
-
     if (!/^[a-z0-9-]{3,30}$/.test(siteName)) {
       alert('Site name invalid. Only lowercase letters, numbers, and - allowed.');
       return;
     }
 
     try {
-      const zip = await JSZip.loadAsync(file);
-
-      // Upload files to Supabase Storage
-      for (const [filename, zipEntry] of Object.entries(zip.files)) {
-        if (zipEntry.dir) continue;
-
-        // Only allow static web files
-        if (!/\.(html|css|js|png|jpg|jpeg|svg|json)$/.test(filename)) continue;
-
-        const content = await zipEntry.async('arraybuffer');
-        await supabase.storage
-          .from('sites')
-          .upload(`${siteName}/${filename}`, content, { upsert: true });
-      }
-
-      // Call create-site function to register site and expiration
+      // 1️⃣ Register the site with create-site function
       const response = await fetch('/.netlify/functions/create-site', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': 'demo-user-id',   // Replace with real user ID in your system
-          'x-site-name': siteName
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: 'demo-user-id', site_name: siteName })
       });
-
       const data = await response.json();
       if (!data.success) {
         alert(data.error || 'Failed to create site');
         return;
       }
 
+      // 2️⃣ Extract ZIP and upload files to Supabase Storage
+      const zip = await JSZip.loadAsync(file);
+      for (const [filename, zipEntry] of Object.entries(zip.files)) {
+        if (zipEntry.dir) continue;
+        // Only allow web files
+        if (!/\.(html|css|js|png|jpg|jpeg|svg|json)$/.test(filename)) continue;
+        const content = await zipEntry.async('arraybuffer');
+        await supabase.storage
+          .from('sites')
+          .upload(`${siteName}/${filename}`, content, { upsert: true });
+      }
+
+      // 3️⃣ Preview site (serve-site function handles serving automatically)
       alert(`Site created! Visit: ${data.url}`);
-      previewFrame.src = `https://${siteName}.botnet2.netlify.app`;
+      previewFrame.src = data.url;
 
     } catch (err) {
       console.error(err);
-      alert('Error uploading files or creating site.');
+      alert('Error creating site or uploading files.');
     }
   });
 </script>
