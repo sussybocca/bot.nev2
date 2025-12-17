@@ -6,11 +6,12 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1 { margin-bottom: 20px; }
-    #blocks { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-    .block { border: 1px solid #ccc; padding: 10px; width: 200px; background: #f9f9f9; cursor: grab; }
+    #blocks { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .block { border: 1px solid #ccc; padding: 10px; background: #f9f9f9; cursor: grab; display: flex; flex-direction: column; }
     .block input, .block textarea { width: 100%; margin-top: 5px; }
-    button { padding: 10px 15px; cursor: pointer; }
+    button { padding: 10px 15px; cursor: pointer; margin-top: 5px; }
     #output { margin-top: 20px; white-space: pre-wrap; }
+    .dragging { opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -25,24 +26,25 @@
   <script>
     const blocksContainer = document.getElementById('blocks');
     const output = document.getElementById('output');
+    let dragSrcEl = null;
 
-    // Fetch existing dialogue blocks for this creator
+    // Load existing blocks
     async function loadBlocks() {
       const session_token = localStorage.getItem('session_token');
       if (!session_token) return;
 
-      const res = await fetch('/.netlify/functions/dialogue', {  // <-- Only dialogue.js
+      const res = await fetch('/.netlify/functions/dialogue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_token })
       });
       const data = await res.json();
-      if (!data.success) return;
+      if (!data.success || !data.responses) return;
 
       data.responses.forEach(r => addBlock(r.trigger, r.response_text));
     }
 
-    // Add a new block
+    // Add block
     function addBlock(trigger = '', response = '') {
       const block = document.createElement('div');
       block.className = 'block';
@@ -53,23 +55,50 @@
         <input type="text" value="${trigger}" placeholder="Type trigger..." />
         <label>Response:</label>
         <textarea placeholder="Type response...">${response}</textarea>
-        <button class="removeBtn">Remove</button>
+        <div>
+          <button class="removeBtn">Remove</button>
+          <button class="moveUpBtn">↑</button>
+          <button class="moveDownBtn">↓</button>
+        </div>
       `;
 
       // Remove block
       block.querySelector('.removeBtn').addEventListener('click', () => block.remove());
 
-      // Drag and drop
+      // Move up
+      block.querySelector('.moveUpBtn').addEventListener('click', () => {
+        if (block.previousElementSibling) blocksContainer.insertBefore(block, block.previousElementSibling);
+      });
+
+      // Move down
+      block.querySelector('.moveDownBtn').addEventListener('click', () => {
+        if (block.nextElementSibling) blocksContainer.insertBefore(block.nextElementSibling, block);
+      });
+
+      // Drag & drop handlers
       block.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/plain', null);
+        dragSrcEl = block;
         block.classList.add('dragging');
       });
-      block.addEventListener('dragend', () => block.classList.remove('dragging'));
+
+      block.addEventListener('dragend', () => {
+        block.classList.remove('dragging');
+      });
+
+      block.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = blocksContainer.querySelector('.dragging');
+        if (!dragging || dragging === block) return;
+
+        const rect = block.getBoundingClientRect();
+        const next = (e.clientY - rect.top) / rect.height > 0.5;
+        blocksContainer.insertBefore(dragging, next ? block.nextSibling : block);
+      });
 
       blocksContainer.appendChild(block);
     }
 
-    // Save all blocks
+    // Save blocks
     async function saveBlocks() {
       const session_token = localStorage.getItem('session_token');
       if (!session_token) {
@@ -82,7 +111,12 @@
         response_text: b.querySelector('textarea').value.trim()
       })).filter(b => b.trigger && b.response_text);
 
-      const res = await fetch('/.netlify/functions/dialogue', {  // <-- Only dialogue.js
+      if (!blocks.length) {
+        output.textContent = 'No valid blocks to save.';
+        return;
+      }
+
+      const res = await fetch('/.netlify/functions/dialogue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_token, blocks, action: 'save' })
