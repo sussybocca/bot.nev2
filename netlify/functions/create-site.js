@@ -15,33 +15,42 @@ export const handler = async (event) => {
 
     // Validate inputs
     if (!user_id || !site_name) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing user_id or site_name' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Missing user_id or site_name' })
+      };
     }
 
     if (!/^[a-z0-9-]{3,30}$/.test(site_name)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid site name. Only lowercase letters, numbers, and - allowed.' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid site name. Only lowercase letters, numbers, and - allowed.' })
+      };
     }
 
-    // Check for duplicate subdomain
+    // Check if the subdomain already exists
     const { data: existing, error: selectError } = await supabase
       .from('sites')
       .select('subdomain')
       .eq('subdomain', site_name)
       .single();
 
-    if (selectError && selectError.code !== 'PGRST116') { // Supabase returns 116 for no rows
+    if (selectError && selectError.code !== 'PGRST116') {
       throw selectError;
     }
 
     if (existing) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Subdomain already exists' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Subdomain already exists' })
+      };
     }
 
     // Set expiration one month from now
     const expires_at = new Date();
     expires_at.setMonth(expires_at.getMonth() + 1);
 
-    // Insert new site
+    // Insert new site into Supabase
     const { error: insertError } = await supabase
       .from('sites')
       .insert({
@@ -53,17 +62,21 @@ export const handler = async (event) => {
 
     if (insertError) throw insertError;
 
+    // ✅ Return URL matching your wildcard domain
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
         message: 'Site created successfully',
-        url: `https://${site_name}.botnet2.netlify.app`
+        url: `https://${site_name}.fire-usa.com` // updated to match your wildcard domain
       })
     };
 
   } catch (err) {
     console.error('create-site error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error', details: err.message }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal server error', details: err.message })
+    };
   }
 };
