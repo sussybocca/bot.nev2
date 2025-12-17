@@ -9,9 +9,6 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
     }
 
-    // -----------------------------
-    // Read session token from cookie
-    // -----------------------------
     const cookies = event.headers.cookie || '';
     const match = cookies.match(/session_token=([^;]+)/);
     const session_token = match ? match[1] : null;
@@ -20,31 +17,27 @@ export const handler = async (event) => {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Unauthorized: No session token.' }) };
     }
 
-    // -----------------------------
-    // Verify session & get user
-    // -----------------------------
-    const { data: sessionData, error: sessionError } = await supabase
+    // Verify session
+    const { data: sessionData } = await supabase
       .from('sessions')
       .select('user_email')
       .eq('session_token', session_token)
       .single();
 
-    if (sessionError || !sessionData) {
+    if (!sessionData) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid session.' }) };
     }
 
     const user_email = sessionData.user_email;
 
-    // -----------------------------
-    // Fetch user by email
-    // -----------------------------
-    const { data: user, error: fetchError } = await supabase
+    // Fetch user
+    const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('email', user_email)
       .single();
 
-    if (fetchError || !user) {
+    if (!user) {
       return { statusCode: 404, body: JSON.stringify({ success: false, error: 'User not found.' }) };
     }
 
@@ -57,67 +50,57 @@ export const handler = async (event) => {
       online_status,
       new_password,
       current_password
-    } = JSON.parse(event.body);
+    } = JSON.parse(event.body || '{}');
 
     let updates = {};
 
-    // -----------------------------
-    // Handle profile creation steps
-    // -----------------------------
-    switch (step) {
+    // Profile creation steps
+    switch(step){
       case 1:
-        if (!username || !bio) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Username and bio required.' }) };
+        if(!username || !bio) return { statusCode:400, body:JSON.stringify({success:false, error:'Username and bio required'})};
         updates.username = username;
         updates.bio = bio;
         break;
       case 2:
-        if (!profile_picture) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Profile picture required.' }) };
+        if(!profile_picture) return { statusCode:400, body:JSON.stringify({success:false, error:'Profile picture required'})};
         updates.profile_picture = profile_picture;
         break;
       case 3:
-        if (!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length > 3)
-          return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Must select up to 3 FBX avatars.' }) };
+        if(!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length > 3) 
+          return { statusCode:400, body:JSON.stringify({success:false, error:'Select up to 3 FBX avatars'})};
         updates.fbx_avatar_ids = fbx_avatar_ids;
         break;
       case 4:
         updates.completed_profile = true;
         break;
       default:
-        if (username) updates.username = username;
-        if (bio) updates.bio = bio;
-        if (profile_picture) updates.profile_picture = profile_picture;
-        if (fbx_avatar_ids) updates.fbx_avatar_ids = fbx_avatar_ids;
+        if(username) updates.username=username;
+        if(bio) updates.bio=bio;
+        if(profile_picture) updates.profile_picture=profile_picture;
+        if(fbx_avatar_ids) updates.fbx_avatar_ids=fbx_avatar_ids;
         break;
     }
 
-    // -----------------------------
-    // Online/Offline status
-    // -----------------------------
-    if (online_status) {
-      if (!['online', 'offline'].includes(online_status))
-        return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid online_status value.' }) };
+    // Online status
+    if(online_status){
+      if(!['online','offline'].includes(online_status)) 
+        return { statusCode:400, body:JSON.stringify({success:false, error:'Invalid online_status'})};
       updates.online_status = online_status;
       updates.last_online = new Date().toISOString();
     }
 
-    // -----------------------------
     // Change password
-    // -----------------------------
-    if (new_password) {
-      if (!current_password) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Current password required.' }) };
+    if(new_password){
+      if(!current_password) return { statusCode:400, body:JSON.stringify({success:false, error:'Current password required'})};
       const match = await bcrypt.compare(current_password, user.password);
-      if (!match) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Incorrect current password.' }) };
+      if(!match) return { statusCode:401, body:JSON.stringify({success:false, error:'Incorrect current password'})};
       updates.password = await bcrypt.hash(new_password, 10);
     }
 
-    // -----------------------------
-    // Remove undefined keys (safety)
-    // -----------------------------
-    updates = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+    // Remove undefined values
+    updates = Object.fromEntries(Object.entries(updates).filter(([_,v])=>v!==undefined));
 
-    // -----------------------------
     // Apply updates
-    // -----------------------------
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
       .update(updates)
@@ -125,34 +108,12 @@ export const handler = async (event) => {
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Supabase update error:', updateError);
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          success: false,
-          error: 'Failed to update profile.',
-          details: updateError
-        })
-      };
-    }
+    if(updateError) return { statusCode:500, body:JSON.stringify({success:false, error:'Failed to update profile', details:updateError})};
 
-    const responseUser = { ...user, ...updatedUser, password: undefined };
+    return { statusCode:200, body:JSON.stringify({success:true, message:'Profile updated successfully!', user:{...user,...updatedUser,password:undefined}})};
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        message: 'Profile updated successfully!',
-        user: responseUser
-      })
-    };
-
-  } catch (err) {
-    console.error('Unexpected error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: 'Failed to update profile.', details: err.message })
-    };
+  } catch(err){
+    console.error('ProfileCreation error:', err);
+    return { statusCode:500, body:JSON.stringify({success:false, error:'Internal server error', details:err.message})};
   }
 };
