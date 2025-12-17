@@ -27,8 +27,8 @@
 
   // Initialize Supabase (keys should be safe, do not push publicly)
   const supabase = createClient(
-    'YOUR_SUPABASE_URL',
-    'YOUR_SUPABASE_KEY'
+    process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
   );
 
   const zipInput = document.getElementById('zipFile');
