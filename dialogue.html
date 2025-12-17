@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dialogue & Response Editor</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 20px; }
+    #blocks { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .block { border: 1px solid #ccc; padding: 10px; width: 200px; background: #f9f9f9; cursor: grab; }
+    .block input, .block textarea { width: 100%; margin-top: 5px; }
+    button { padding: 10px 15px; cursor: pointer; }
+    #output { margin-top: 20px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Dialogue & Response Editor</h1>
+
+  <button id="addBlockBtn">Add Block</button>
+  <button id="saveBlocksBtn">Save All</button>
+
+  <div id="blocks"></div>
+  <div id="output"></div>
+
+  <script>
+    const blocksContainer = document.getElementById('blocks');
+    const output = document.getElementById('output');
+
+    // Fetch existing dialogue blocks for this creator
+    async function loadBlocks() {
+      const session_token = localStorage.getItem('session_token');
+      if (!session_token) return;
+
+      const res = await fetch('/.netlify/functions/dialogue', {  // <-- Only dialogue.js
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token })
+      });
+      const data = await res.json();
+      if (!data.success) return;
+
+      data.responses.forEach(r => addBlock(r.trigger, r.response_text));
+    }
+
+    // Add a new block
+    function addBlock(trigger = '', response = '') {
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.draggable = true;
+
+      block.innerHTML = `
+        <label>Trigger:</label>
+        <input type="text" value="${trigger}" placeholder="Type trigger..." />
+        <label>Response:</label>
+        <textarea placeholder="Type response...">${response}</textarea>
+        <button class="removeBtn">Remove</button>
+      `;
+
+      // Remove block
+      block.querySelector('.removeBtn').addEventListener('click', () => block.remove());
+
+      // Drag and drop
+      block.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', null);
+        block.classList.add('dragging');
+      });
+      block.addEventListener('dragend', () => block.classList.remove('dragging'));
+
+      blocksContainer.appendChild(block);
+    }
+
+    // Save all blocks
+    async function saveBlocks() {
+      const session_token = localStorage.getItem('session_token');
+      if (!session_token) {
+        output.textContent = 'No session token found.';
+        return;
+      }
+
+      const blocks = [...blocksContainer.querySelectorAll('.block')].map(b => ({
+        trigger: b.querySelector('input').value.trim(),
+        response_text: b.querySelector('textarea').value.trim()
+      })).filter(b => b.trigger && b.response_text);
+
+      const res = await fetch('/.netlify/functions/dialogue', {  // <-- Only dialogue.js
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token, blocks, action: 'save' })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        output.textContent = 'Dialogue blocks saved successfully!';
+      } else {
+        output.textContent = 'Error saving blocks: ' + (data.error || 'Unknown error');
+      }
+    }
+
+    document.getElementById('addBlockBtn').addEventListener('click', () => addBlock());
+    document.getElementById('saveBlocksBtn').addEventListener('click', saveBlocks);
+
+    loadBlocks();
+  </script>
+</body>
+</html>
