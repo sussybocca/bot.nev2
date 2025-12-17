@@ -5,91 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Signup — Botnev</title>
 <style>
-  body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
-  h1 { color:#333; }
-  input, a { width:100%; max-width:400px; margin:10px 0; padding:10px; font-size:16px; border-radius:5px; border:1px solid #ccc; display:block; text-decoration:none; text-align:center; }
-  a { background:#007bff; color:white; cursor:pointer; }
-  a:hover { background:#0056b3; }
-  #output { margin-top:20px; font-family:monospace; padding:10px; border-radius:6px; }
+body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
+h1 { color:#333; }
+input, a { width:100%; max-width:400px; margin:10px 0; padding:10px; font-size:16px; border-radius:5px; border:1px solid #ccc; display:block; text-decoration:none; text-align:center; }
+a { background:#007bff; color:white; cursor:pointer; }
+a:hover { background:#0056b3; }
+#output { margin-top:20px; font-family:monospace; padding:10px; border-radius:6px; }
 </style>
 </head>
 <body>
 
 <h1>Signup for Botnev</h1>
 
-<!-- Email & Password Inputs -->
 <input type="email" id="email" placeholder="Email" required />
 <input type="password" id="password" placeholder="Password" required />
-
-<!-- Signup Link -->
 <a href="#" id="signupBtn">🎞️ Signup</a>
 
-<!-- Output / Verification -->
 <div id="output"></div>
 
 <script>
 const output = document.getElementById('output');
 
 document.getElementById('signupBtn').addEventListener('click', async (e) => {
-  e.preventDefault(); // prevent <a> navigation
+  e.preventDefault();
 
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
-  const username = email.split('@')[0]; // auto username
+  const username = email.split('@')[0];
 
-  if (!email || !password) {
+  if(!email || !password) {
     output.textContent = "Enter email and password.";
     return;
   }
 
   try {
     const res = await fetch('/.netlify/functions/signup', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ email, username, password })
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ email, username, password })
     });
 
     const data = await res.json();
+    if(!data.success) { output.textContent = `Error: ${data.error}`; return; }
 
-    if (data.success) {
-      output.innerHTML = `
-        Verification code sent! Check your email.<br>
-        <input id="codeInput" placeholder="Enter verification code" />
-        <a href="#" id="verifyBtn">Verify</a>
-      `;
+    output.innerHTML = `
+      Verification code sent! Check your email.<br>
+      <input id="codeInput" placeholder="Enter verification code" />
+      <a href="#" id="verifyBtn">Verify</a>
+    `;
 
-      document.getElementById('verifyBtn').addEventListener('click', async (e) => {
-        e.preventDefault();
-        const code = document.getElementById('codeInput').value.trim();
-        if (!code) {
-          output.textContent = "Enter the verification code.";
-          return;
-        }
+    document.getElementById('verifyBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('codeInput').value.trim();
+      if(!code) { output.textContent = "Enter the verification code."; return; }
 
-        const verifyRes = await fetch('/.netlify/functions/verify', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ email, code })
-        });
-        const verifyData = await verifyRes.json();
-
-        if (verifyData.success) {
-          output.textContent = "Email verified! Redirecting...";
-          setTimeout(() => window.location.href = '/index.html', 1500);
-        } else {
-          output.textContent = `Verification failed: ${verifyData.error}`;
-        }
+      const verifyRes = await fetch('/.netlify/functions/verify', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ email, code })
       });
 
-    } else {
-      output.textContent = `Error: ${data.error}`;
-    }
+      const verifyData = await verifyRes.json();
+      if(verifyData.success){
+        output.textContent = "Email verified! Redirecting...";
+        setTimeout(()=>window.location.href='/index.html',1500);
+      } else {
+        output.textContent = `Verification failed: ${verifyData.error}`;
+      }
+    });
 
-  } catch (err) {
+  } catch(err) {
     output.textContent = `Error: ${err.message}`;
   }
 });
 </script>
-
 </body>
 </html>
