@@ -20,7 +20,6 @@ button { padding: 10px 15px; margin-top: 10px; }
 <div class="container">
 <h1>Create Your Profile</h1>
 
-<!-- Step 1 -->
 <div class="step active" id="step-1">
   <h2>Step 1: Username & Bio</h2>
   <input type="text" id="username" placeholder="Username" />
@@ -28,14 +27,12 @@ button { padding: 10px 15px; margin-top: 10px; }
   <button onclick="nextStep()">Next</button>
 </div>
 
-<!-- Step 2 -->
 <div class="step" id="step-2">
   <h2>Step 2: Profile Picture</h2>
   <input type="file" id="profile-picture" accept="image/*" />
   <button onclick="nextStep()">Next</button>
 </div>
 
-<!-- Step 3 -->
 <div class="step" id="step-3">
   <h2>Step 3: Pick FBX Avatars (max 3)</h2>
   <div class="fbx-options" id="fbx-options">
@@ -47,7 +44,6 @@ button { padding: 10px 15px; margin-top: 10px; }
   <button onclick="nextStep()">Next</button>
 </div>
 
-<!-- Step 4 -->
 <div class="step" id="step-4">
   <h2>Step 4: Finish</h2>
   <button onclick="finishProfile()">Complete Profile</button>
@@ -60,76 +56,74 @@ button { padding: 10px 15px; margin-top: 10px; }
 let currentStep = 1;
 let fbxSelected = [];
 
-// Get session token from cookie
+// Session token
 function getSessionToken() {
   const match = document.cookie.match(/session_token=([^;]+)/);
   return match ? match[1] : null;
 }
 
-// FBX selection logic
+// FBX selection
 document.querySelectorAll('.fbx-options div').forEach(el => {
   el.addEventListener('click', () => {
-    if (fbxSelected.includes(el.dataset.id)) {
-      fbxSelected = fbxSelected.filter(id => id !== el.dataset.id);
+    if(fbxSelected.includes(el.dataset.id)){
+      fbxSelected = fbxSelected.filter(id=>id!==el.dataset.id);
       el.classList.remove('selected');
-    } else if (fbxSelected.length < 3) {
+    } else if(fbxSelected.length < 3){
       fbxSelected.push(el.dataset.id);
       el.classList.add('selected');
     }
   });
 });
 
-function showStep(step) {
-  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+function showStep(step){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
   const stepEl = document.getElementById(`step-${step}`);
   if(stepEl) stepEl.classList.add('active');
 }
 
-// Send step data to backend
-async function sendStepData(step, data) {
+// Send data to backend
+async function sendStepData(step,data){
   const session_token = getSessionToken();
-  if(!session_token) { alert("No session token found. Please log in."); return; }
-
-  const res = await fetch('/.netlify/functions/profileCreation', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ step, session_token, ...data })
+  if(!session_token) { alert("No session token found"); return; }
+  const res = await fetch('/.netlify/functions/profileCreation',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({step,session_token,...data})
   });
-  const json = await res.json();
-  return json;
+  return await res.json();
 }
 
-// Next step handler
-async function nextStep() {
+// Next step
+async function nextStep(){
   let data = {};
-  if (currentStep === 1) {
-    const username = document.getElementById('username').value.trim();
-    const bio = document.getElementById('bio').value.trim();
-    if(!username || !bio){ alert("Enter username and bio"); return; }
-    data = { username, bio };
-  } else if (currentStep === 2) {
-    const fileInput = document.getElementById('profile-picture');
-    if(fileInput.files.length === 0){ alert("Upload a profile picture"); return; }
-    const reader = new FileReader();
-    await new Promise(resolve => reader.onload = () => { data.profile_picture = reader.result; resolve(); });
+  if(currentStep===1){
+    const username=document.getElementById('username').value.trim();
+    const bio=document.getElementById('bio').value.trim();
+    if(!username||!bio){ alert("Enter username and bio"); return; }
+    data={username,bio};
+  } else if(currentStep===2){
+    const fileInput=document.getElementById('profile-picture');
+    if(fileInput.files.length===0){ alert("Upload a profile picture"); return; }
+    const reader=new FileReader();
+    await new Promise(resolve=>reader.onload=()=>{data.profile_picture=reader.result;resolve();});
     reader.readAsDataURL(fileInput.files[0]);
-  } else if (currentStep === 3) {
-    if(fbxSelected.length === 0){ alert("Select at least 1 FBX avatar"); return; }
-    data = { fbx_avatar_ids: fbxSelected };
+  } else if(currentStep===3){
+    if(fbxSelected.length===0){ alert("Select at least 1 FBX avatar"); return; }
+    data={fbx_avatar_ids:fbxSelected};
   }
 
-  const response = await sendStepData(currentStep, data);
+  const response = await sendStepData(currentStep,data);
   document.getElementById('message').innerText = response.message || response.error;
   if(response.success){ currentStep++; showStep(currentStep); }
 }
 
 // Finish profile
-async function finishProfile() {
-  const response = await sendStepData(currentStep, {});
-  document.getElementById('message').innerText = response.message || response.error;
+async function finishProfile(){
+  const response = await sendStepData(currentStep,{});
+  document.getElementById('message').innerText=response.message || response.error;
   if(response.success){
     alert("Profile created successfully!");
-    window.location.href = '/marketplace.html';
+    window.location.href='/marketplace.html';
   }
 }
 </script>
