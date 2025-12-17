@@ -33,6 +33,15 @@ export const handler = async (event) => {
 
     const userEmail = sessionData.user_email;
 
+    // 🔎 Get creator settings for this user
+    const { data: creatorSettings } = await supabase
+      .from('creator_settings')
+      .select('*')
+      .eq('user_email', userEmail)
+      .single();
+
+    const checkResponses = creatorSettings?.check_responses ?? true; // default: true
+
     // 🔎 Store user message
     const userMessageId = uuidv4();
     await supabase.from('messages').insert({
@@ -43,10 +52,22 @@ export const handler = async (event) => {
       created_at: new Date()
     });
 
-    // 🤖 Generate bot response (example rules; can upgrade to AI later)
+    // 🤖 Generate bot response
     let botResponse = 'I am not sure how to respond to that.';
-    if (message.toLowerCase().includes('hello')) botResponse = 'Hello! How can I help you today?';
-    if (message.toLowerCase().includes('help')) botResponse = 'Sure! Ask me anything, and I will try to assist.';
+
+    if (checkResponses) {
+      // Get creator-defined responses from DB
+      const { data: responseRules } = await supabase
+        .from('dialogue_responses')
+        .select('*')
+        .eq('user_email', userEmail);
+
+      // Match user message with creator responses
+      const matched = responseRules.find(r =>
+        message.toLowerCase().includes(r.trigger.toLowerCase())
+      );
+      if (matched) botResponse = matched.response_text;
+    }
 
     // 🔎 Store bot response
     const botMessageId = uuidv4();
@@ -58,14 +79,20 @@ export const handler = async (event) => {
       created_at: new Date()
     });
 
-    // ✅ Return bot response
+    // 🔄 Retrieve recent conversation (last 20 messages)
+    const { data: conversation } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('user_email', userEmail)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        response: botResponse,
-        userMessageId,
-        botMessageId
+        botResponse,
+        conversation
       })
     };
   } catch (err) {
