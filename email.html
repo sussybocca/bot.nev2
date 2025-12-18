@@ -77,139 +77,121 @@
   </style>
 </head>
 <body>
-  <header>Email System</header>
-  <main>
-    <label for="toUser">Send To:</label>
-    <select id="toUser">
-      <option value="">Loading users...</option>
-    </select>
 
-    <label for="subject">Subject:</label>
-    <input type="text" id="subject" placeholder="Type subject here...">
+<header>Email System</header>
 
-    <label for="body">Body:</label>
-    <textarea id="body" placeholder="Type your email..."></textarea>
+<main>
+  <label for="toUser">Send To:</label>
+  <select id="toUser">
+    <option value="">Loading users...</option>
+  </select>
 
-    <button id="sendBtn">Send Email</button>
-    <div id="output"></div>
+  <label for="subject">Subject:</label>
+  <input type="text" id="subject" maxlength="200">
 
-    <h2>Inbox</h2>
-    <div id="inbox">Loading emails...</div>
-  </main>
+  <label for="body">Body:</label>
+  <textarea id="body" maxlength="2000"></textarea>
 
-  <script>
-    const toUserSelect = document.getElementById('toUser');
-    const subjectInput = document.getElementById('subject');
-    const bodyInput = document.getElementById('body');
-    const sendBtn = document.getElementById('sendBtn');
-    const output = document.getElementById('output');
-    const inboxDiv = document.getElementById('inbox');
+  <button id="sendBtn">Send Email</button>
+  <div id="output"></div>
 
-    // Function to get session token from cookie
-    function getSessionToken() {
-      const match = document.cookie.match(/session_token=([^;]+)/);
-      return match ? match[1] : null;
-    }
+  <h2>Inbox</h2>
+  <div id="inbox">Loading emails...</div>
+</main>
 
-    // Load verified users to populate recipients
-    async function loadUsers() {
-      const session_token = getSessionToken();
-      if (!session_token) {
-        toUserSelect.innerHTML = '<option value="">No session found</option>';
-        return;
-      }
+<script>
+const toUserSelect = document.getElementById('toUser');
+const subjectInput = document.getElementById('subject');
+const bodyInput = document.getElementById('body');
+const sendBtn = document.getElementById('sendBtn');
+const output = document.getElementById('output');
+const inboxDiv = document.getElementById('inbox');
 
-      const res = await fetch('/.netlify/functions/getVerifiedUsers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_token })
-      });
+// Load verified users
+async function loadUsers() {
+  const res = await fetch('/.netlify/functions/getVerifiedUsers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
 
-      const data = await res.json();
-      if (!data.success) {
-        toUserSelect.innerHTML = '<option value="">Failed to load users</option>';
-        return;
-      }
+  const data = await res.json();
+  if (!data.success) {
+    toUserSelect.innerHTML = '<option value="">Failed to load users</option>';
+    return;
+  }
 
-      toUserSelect.innerHTML = '<option value="">Select recipient...</option>';
-      data.users.forEach(u => {
-        const option = document.createElement('option');
-        option.value = u.email;
-        option.textContent = u.email;
-        toUserSelect.appendChild(option);
-      });
-    }
+  toUserSelect.innerHTML = '<option value="">Select recipient...</option>';
+  data.users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.email;
+    opt.textContent = u.email;
+    toUserSelect.appendChild(opt);
+  });
+}
 
-    // Send email
-    sendBtn.addEventListener('click', async () => {
-      const session_token = getSessionToken();
-      const to_user = toUserSelect.value;
-      const subject = subjectInput.value.trim();
-      const body = bodyInput.value.trim();
+// Send email (COOKIE AUTH)
+sendBtn.addEventListener('click', async () => {
+  const to_user = toUserSelect.value;
+  const subject = subjectInput.value.trim();
+  const body = bodyInput.value.trim();
 
-      if (!to_user || !body) {
-        output.textContent = 'Recipient and body are required!';
-        return;
-      }
+  if (!to_user || !body) {
+    output.textContent = 'Recipient and body required.';
+    return;
+  }
 
-      const res = await fetch('/.netlify/functions/sendEmail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_token, to_user, subject, body })
-      });
+  const res = await fetch('/.netlify/functions/sendEmail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to_user, subject, body })
+  });
 
-      const data = await res.json();
-      if (data.success) {
-        output.textContent = 'Email sent successfully!';
-        subjectInput.value = '';
-        bodyInput.value = '';
-        loadInbox(); // Refresh inbox after sending
-      } else {
-        output.textContent = 'Error: ' + (data.error || 'Unknown error');
-      }
-    });
-
-    // Load inbox emails
-    async function loadInbox() {
-      const session_token = getSessionToken();
-      if (!session_token) {
-        inboxDiv.textContent = 'No session found';
-        return;
-      }
-
-      const res = await fetch('/.netlify/functions/getEmails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_token })
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        inboxDiv.textContent = 'Failed to load emails';
-        return;
-      }
-
-      if (data.emails.length === 0) {
-        inboxDiv.textContent = 'No emails';
-        return;
-      }
-
-      inboxDiv.innerHTML = '';
-      data.emails.forEach(e => {
-        const emailDiv = document.createElement('div');
-        emailDiv.className = 'email';
-        emailDiv.innerHTML = `
-          <div><strong>From:</strong> ${e.from_user}</div>
-          <div><strong>Subject:</strong> ${e.subject || '(No subject)'}</div>
-          <div><strong>Received:</strong> ${new Date(e.created_at).toLocaleString()}</div>
-          <div>${e.body}</div>
-        `;
-        inboxDiv.appendChild(emailDiv);
-      });
-    }
-
-    loadUsers();
+  const data = await res.json();
+  if (data.success) {
+    output.textContent = 'Email sent.';
+    subjectInput.value = '';
+    bodyInput.value = '';
     loadInbox();
-  </script>
+  } else {
+    output.textContent = 'Error: ' + data.error;
+  }
+});
+
+// Load inbox
+async function loadInbox() {
+  const res = await fetch('/.netlify/functions/getEmails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  const data = await res.json();
+  if (!data.success) {
+    inboxDiv.textContent = 'Failed to load inbox';
+    return;
+  }
+
+  if (!data.emails.length) {
+    inboxDiv.textContent = 'No emails';
+    return;
+  }
+
+  inboxDiv.innerHTML = '';
+  data.emails.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'email';
+    div.innerHTML = `
+      <div><strong>From:</strong> ${e.from_user}</div>
+      <div><strong>Subject:</strong> ${e.subject || '(none)'}</div>
+      <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+      <div>${e.body}</div>
+    `;
+    inboxDiv.appendChild(div);
+  });
+}
+
+loadUsers();
+loadInbox();
+</script>
+
 </body>
 </html>
