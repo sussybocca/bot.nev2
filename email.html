@@ -47,11 +47,9 @@
     const output = document.getElementById('output');
     const inboxDiv = document.getElementById('inbox');
 
-    const CSRF_TOKEN = '<?=process.env.CSRF_TOKEN?>'; // Or set dynamically
-
     // Helper: fetch with credentials
     async function fetchWithCredentials(url, options = {}) {
-      options.credentials = 'include'; // <--- send cookies
+      options.credentials = 'include';
       return fetch(url, options);
     }
 
@@ -59,8 +57,7 @@
     async function loadUsers() {
       try {
         const res = await fetchWithCredentials('/.netlify/functions/getVerifiedUsers', {
-          method: 'POST',
-          headers: { 'x-csrf-token': CSRF_TOKEN }
+          method: 'POST'
         });
         const data = await res.json();
         if (!data.success) {
@@ -84,10 +81,7 @@
     async function loadInbox() {
       try {
         inboxDiv.textContent = 'Loading emails...';
-        const res = await fetchWithCredentials('/.netlify/functions/getEmails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-csrf-token': CSRF_TOKEN }
-        });
+        const res = await fetchWithCredentials('/.netlify/functions/getEmails', { method: 'POST' });
         const data = await res.json();
         if (!data.success) {
           inboxDiv.textContent = 'Failed to load emails';
@@ -129,7 +123,7 @@
       try {
         const res = await fetchWithCredentials('/.netlify/functions/sendEmail', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-csrf-token': CSRF_TOKEN },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ to_user, subject, body })
         });
         const data = await res.json();
@@ -137,7 +131,7 @@
           output.textContent = 'Email sent successfully!';
           subjectInput.value = '';
           bodyInput.value = '';
-          loadInbox(); // refresh inbox
+          loadInbox();
         } else {
           output.textContent = 'Error: ' + (data.error || 'Unknown error');
         }
