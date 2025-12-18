@@ -65,6 +65,16 @@
 
 <script>
 // --------------------
+// DOM references (must come first)
+// --------------------
+const toUserSelect = document.getElementById('toUser');
+const subjectInput = document.getElementById('subject');
+const bodyInput = document.getElementById('body');
+const sendBtn = document.getElementById('sendBtn');
+const output = document.getElementById('output');
+const inboxDiv = document.getElementById('inbox');
+
+// --------------------
 // Sanitize input to prevent HTML/script injection
 // --------------------
 function sanitize(str) {
@@ -95,6 +105,45 @@ async function loadUsers() {
   } catch (err) {
     console.error(err);
     toUserSelect.innerHTML = '<option value="">Failed to load users</option>';
+  }
+}
+
+// --------------------
+// Load inbox
+// --------------------
+async function loadInbox() {
+  try {
+    const res = await fetch('/.netlify/functions/getEmails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include'
+    });
+    const data = await res.json();
+    if (!data.success) {
+      inboxDiv.textContent = 'Failed to load inbox';
+      return;
+    }
+
+    if (!data.emails.length) {
+      inboxDiv.textContent = 'No emails';
+      return;
+    }
+
+    inboxDiv.innerHTML = '';
+    data.emails.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'email';
+      div.innerHTML = `
+        <div><strong>From:</strong> ${sanitize(e.from_user)}</div>
+        <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
+        <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+        <div>${sanitize(e.body)}</div>
+      `;
+      inboxDiv.appendChild(div);
+    });
+  } catch (err) {
+    console.error('Failed to load inbox:', err);
+    inboxDiv.textContent = 'Failed to load inbox';
   }
 }
 
@@ -138,54 +187,8 @@ sendBtn.addEventListener('click', async () => {
 });
 
 // --------------------
-// Load inbox
-// --------------------
-async function loadInbox() {
-  try {
-    const res = await fetch('/.netlify/functions/getEmails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
-    const data = await res.json();
-    if (!data.success) {
-      inboxDiv.textContent = 'Failed to load inbox';
-      return;
-    }
-
-    if (!data.emails.length) {
-      inboxDiv.textContent = 'No emails';
-      return;
-    }
-
-    inboxDiv.innerHTML = '';
-    data.emails.forEach(e => {
-      const div = document.createElement('div');
-      div.className = 'email';
-      div.innerHTML = `
-        <div><strong>From:</strong> ${sanitize(e.from_user)}</div>
-        <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
-        <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
-        <div>${sanitize(e.body)}</div>
-      `;
-      inboxDiv.appendChild(div);
-    });
-  } catch (err) {
-    console.error('Failed to load inbox:', err);
-    inboxDiv.textContent = 'Failed to load inbox';
-  }
-}
-
-// --------------------
 // Initialize
 // --------------------
-const toUserSelect = document.getElementById('toUser');
-const subjectInput = document.getElementById('subject');
-const bodyInput = document.getElementById('body');
-const sendBtn = document.getElementById('sendBtn');
-const output = document.getElementById('output');
-const inboxDiv = document.getElementById('inbox');
-
 loadUsers();
 loadInbox();
 </script>
