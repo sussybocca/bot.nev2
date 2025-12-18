@@ -2,24 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Secure Email System</title>
+  <title>Email System</title>
   <style>
-    body { background-color: #0f0f0f; color: #00ff00; font-family: 'Courier New', monospace; margin: 0; padding: 0; }
-    header { background-color: #111; padding: 20px; text-align: center; font-size: 1.5em; border-bottom: 2px solid #00ff00; }
-    main { padding: 20px; display: flex; flex-direction: column; max-width: 700px; margin: auto; }
-    label { display: block; margin: 10px 0 5px; font-weight: bold; }
-    select, input, textarea { width: 100%; padding: 8px; background-color: #111; border: 1px solid #00ff00; color: #00ff00; font-family: monospace; }
-    textarea { height: 150px; resize: vertical; }
-    button { margin-top: 15px; padding: 10px 20px; background-color: #ff0000; color: #000; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
-    button:hover { background-color: #aa0000; }
-    #output { margin-top: 20px; padding: 10px; border: 1px solid #00ff00; min-height: 20px; white-space: pre-wrap; }
-    #inbox { margin-top: 30px; }
-    .email { border: 1px solid #00ff00; padding: 10px; margin-bottom: 10px; }
-    .email strong { display: inline-block; width: 80px; }
+    body {
+      background-color: #0f0f0f;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #111;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.5em;
+      border-bottom: 2px solid #00ff00;
+    }
+    main {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      max-width: 700px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    select, input, textarea {
+      width: 100%;
+      padding: 8px;
+      background-color: #111;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      font-family: monospace;
+    }
+    textarea {
+      height: 150px;
+      resize: vertical;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background-color: #ff0000;
+      color: #000;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    button:hover {
+      background-color: #aa0000;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #00ff00;
+      min-height: 20px;
+      white-space: pre-wrap;
+    }
+    #inbox {
+      margin-top: 30px;
+    }
+    .email {
+      border: 1px solid #00ff00;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .email strong {
+      display: inline-block;
+      width: 80px;
+    }
   </style>
 </head>
 <body>
-  <header>Secure Email System</header>
+  <header>Email System</header>
   <main>
     <label for="toUser">Send To:</label>
     <select id="toUser">
@@ -47,70 +105,44 @@
     const output = document.getElementById('output');
     const inboxDiv = document.getElementById('inbox');
 
-    // Helper: fetch with credentials
-    async function fetchWithCredentials(url, options = {}) {
-      options.credentials = 'include';
-      return fetch(url, options);
+    // Function to get session token from cookie
+    function getSessionToken() {
+      const match = document.cookie.match(/session_token=([^;]+)/);
+      return match ? match[1] : null;
     }
 
-    // Load verified users
+    // Load verified users to populate recipients
     async function loadUsers() {
-      try {
-        const res = await fetchWithCredentials('/.netlify/functions/getVerifiedUsers', {
-          method: 'POST'
-        });
-        const data = await res.json();
-        if (!data.success) {
-          toUserSelect.innerHTML = '<option value="">Failed to load users</option>';
-          return;
-        }
-        toUserSelect.innerHTML = '<option value="">Select recipient...</option>';
-        data.users.forEach(u => {
-          const option = document.createElement('option');
-          option.value = u.email;
-          option.textContent = u.email;
-          toUserSelect.appendChild(option);
-        });
-      } catch (err) {
-        toUserSelect.innerHTML = '<option value="">Error loading users</option>';
-        console.error('loadUsers error:', err);
+      const session_token = getSessionToken();
+      if (!session_token) {
+        toUserSelect.innerHTML = '<option value="">No session found</option>';
+        return;
       }
-    }
 
-    // Load inbox emails
-    async function loadInbox() {
-      try {
-        inboxDiv.textContent = 'Loading emails...';
-        const res = await fetchWithCredentials('/.netlify/functions/getEmails', { method: 'POST' });
-        const data = await res.json();
-        if (!data.success) {
-          inboxDiv.textContent = 'Failed to load emails';
-          return;
-        }
-        if (!data.emails || data.emails.length === 0) {
-          inboxDiv.textContent = 'No emails';
-          return;
-        }
-        inboxDiv.innerHTML = '';
-        data.emails.forEach(e => {
-          const emailDiv = document.createElement('div');
-          emailDiv.className = 'email';
-          emailDiv.innerHTML = `
-            <div><strong>From:</strong> ${e.from_user}</div>
-            <div><strong>Subject:</strong> ${e.subject || '(No subject)'}</div>
-            <div><strong>Received:</strong> ${new Date(e.created_at).toLocaleString()}</div>
-            <div>${e.body}</div>
-          `;
-          inboxDiv.appendChild(emailDiv);
-        });
-      } catch (err) {
-        inboxDiv.textContent = 'Error loading emails';
-        console.error('loadInbox error:', err);
+      const res = await fetch('/.netlify/functions/getVerifiedUsers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        toUserSelect.innerHTML = '<option value="">Failed to load users</option>';
+        return;
       }
+
+      toUserSelect.innerHTML = '<option value="">Select recipient...</option>';
+      data.users.forEach(u => {
+        const option = document.createElement('option');
+        option.value = u.email;
+        option.textContent = u.email;
+        toUserSelect.appendChild(option);
+      });
     }
 
     // Send email
     sendBtn.addEventListener('click', async () => {
+      const session_token = getSessionToken();
       const to_user = toUserSelect.value;
       const subject = subjectInput.value.trim();
       const body = bodyInput.value.trim();
@@ -120,28 +152,62 @@
         return;
       }
 
-      try {
-        const res = await fetchWithCredentials('/.netlify/functions/sendEmail', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to_user, subject, body })
-        });
-        const data = await res.json();
-        if (data.success) {
-          output.textContent = 'Email sent successfully!';
-          subjectInput.value = '';
-          bodyInput.value = '';
-          loadInbox();
-        } else {
-          output.textContent = 'Error: ' + (data.error || 'Unknown error');
-        }
-      } catch (err) {
-        output.textContent = 'Error sending email';
-        console.error('sendEmail error:', err);
+      const res = await fetch('/.netlify/functions/sendEmail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token, to_user, subject, body })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        output.textContent = 'Email sent successfully!';
+        subjectInput.value = '';
+        bodyInput.value = '';
+        loadInbox(); // Refresh inbox after sending
+      } else {
+        output.textContent = 'Error: ' + (data.error || 'Unknown error');
       }
     });
 
-    // Initial load
+    // Load inbox emails
+    async function loadInbox() {
+      const session_token = getSessionToken();
+      if (!session_token) {
+        inboxDiv.textContent = 'No session found';
+        return;
+      }
+
+      const res = await fetch('/.netlify/functions/getEmails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        inboxDiv.textContent = 'Failed to load emails';
+        return;
+      }
+
+      if (data.emails.length === 0) {
+        inboxDiv.textContent = 'No emails';
+        return;
+      }
+
+      inboxDiv.innerHTML = '';
+      data.emails.forEach(e => {
+        const emailDiv = document.createElement('div');
+        emailDiv.className = 'email';
+        emailDiv.innerHTML = `
+          <div><strong>From:</strong> ${e.from_user}</div>
+          <div><strong>Subject:</strong> ${e.subject || '(No subject)'}</div>
+          <div><strong>Received:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+          <div>${e.body}</div>
+        `;
+        inboxDiv.appendChild(emailDiv);
+      });
+    }
+
     loadUsers();
     loadInbox();
   </script>
