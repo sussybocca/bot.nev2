@@ -35,7 +35,7 @@ async function randomDelay() {
 function generateEncryptedToken() {
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(process.env.SESSION_SECRET, 'salt', 32);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
   const uuid = uuidv4();
   const encrypted = cipher.update(uuid, 'utf8', 'hex') + cipher.final('hex');
   const tag = cipher.getAuthTag().toString('hex');
@@ -68,9 +68,10 @@ export const handler = async (event) => {
     // Fetch user
     const { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
 
-    // Dummy bcrypt compare for timing attack prevention
+    // Ensure password exists for bcrypt
+    const userPassword = user?.encrypted_password || user?.password || '';
     const dummyHash = '$2b$12$C6UzMDM.H6dfI/f/IKcEeO';
-    const passwordMatch = user ? await bcrypt.compare(password, user.encrypted_password || user.password) : await bcrypt.compare(dummyHash, dummyHash);
+    const passwordMatch = user ? await bcrypt.compare(password, userPassword) : await bcrypt.compare(password, dummyHash);
 
     // Verification & security checks
     if (
