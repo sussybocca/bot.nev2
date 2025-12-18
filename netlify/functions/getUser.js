@@ -16,9 +16,11 @@ export const handler = async (event) => {
       };
     }
 
-    // ✅ Safely parse cookies (Netlify-compatible)
+    // ✅ Parse cookies and support both new and legacy session cookies
     const cookies = cookie.parse(event.headers.cookie || '');
-    const session_token = cookies.session_token;
+    const session_token =
+      cookies['__Host-session_secure'] || // new login
+      cookies['session_token'];           // legacy login
 
     if (!session_token) {
       return {
@@ -48,7 +50,7 @@ export const handler = async (event) => {
       };
     }
 
-    // ✅ Fetch user
+    // ✅ Fetch user by session email
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -62,7 +64,7 @@ export const handler = async (event) => {
       };
     }
 
-    // ✅ Sanitize output
+    // ✅ Remove sensitive info before returning
     const safeUser = { ...user };
     delete safeUser.password;
     delete safeUser.encrypted_password;
@@ -76,7 +78,7 @@ export const handler = async (event) => {
     console.error('getUser error:', err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, error: 'Failed to fetch user' })
+      body: JSON.stringify({ success: false, error: 'Failed to fetch user', details: err.message })
     };
   }
 };
