@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Recovery Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- hCaptcha -->
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .login-box {
+      background: #020617;
+      padding: 2rem;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: none;
+      background: #1e293b;
+      color: #e5e7eb;
+    }
+
+    label {
+      font-size: 0.9rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .google-btn {
+      background: #db4437;
+    }
+
+    .error {
+      color: #f87171;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .success {
+      color: #4ade80;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-box">
+  <h2>Recovery Login</h2>
+
+  <form id="loginForm">
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+
+    <label>
+      <input type="checkbox" id="remember_me" />
+      Remember me
+    </label>
+
+    <!-- hCaptcha widget -->
+    <div
+      class="h-captcha"
+      data-sitekey="2b1cc900-c846-40e8-bf32-dbeeeec2d1c0">
+    </div>
+
+    <button type="submit">Login</button>
+  </form>
+
+  <button class="google-btn" onclick="googleLogin()">
+    Continue with Google
+  </button>
+
+  <div id="message"></div>
+</div>
+
+<script>
+  const form = document.getElementById('loginForm');
+  const messageBox = document.getElementById('message');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    messageBox.textContent = '';
+
+    const captchaToken = hcaptcha.getResponse();
+    if (!captchaToken) {
+      messageBox.innerHTML =
+        '<div class="error">Please complete the CAPTCHA.</div>';
+      return;
+    }
+
+    const payload = {
+      email: email.value,
+      password: password.value,
+      remember_me: remember_me.checked,
+      captcha_token: captchaToken
+    };
+
+    try {
+      const res = await fetch('/.netlify/functions/recoveryfiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        hcaptcha.reset();
+        messageBox.innerHTML =
+          `<div class="error">${data.error}</div>`;
+        return;
+      }
+
+      messageBox.innerHTML =
+        '<div class="success">Login successful. Redirecting…</div>';
+
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+
+    } catch {
+      messageBox.innerHTML =
+        '<div class="error">Network error.</div>';
+    }
+  });
+
+  function googleLogin() {
+    fetch('/.netlify/functions/recoveryfiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ google: true })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.redirect) {
+        window.location.href = data.redirect;
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
