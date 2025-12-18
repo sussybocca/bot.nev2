@@ -111,7 +111,8 @@ const inboxDiv = document.getElementById('inbox');
 async function loadUsers() {
   const res = await fetch('/.netlify/functions/getVerifiedUsers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include' // ✅ send cookies
   });
 
   const data = await res.json();
@@ -129,7 +130,7 @@ async function loadUsers() {
   });
 }
 
-// Send email (COOKIE AUTH)
+// Send email
 sendBtn.addEventListener('click', async () => {
   const to_user = toUserSelect.value;
   const subject = subjectInput.value.trim();
@@ -143,6 +144,7 @@ sendBtn.addEventListener('click', async () => {
   const res = await fetch('/.netlify/functions/sendEmail', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // ✅ send cookies
     body: JSON.stringify({ to_user, subject, body })
   });
 
@@ -161,7 +163,8 @@ sendBtn.addEventListener('click', async () => {
 async function loadInbox() {
   const res = await fetch('/.netlify/functions/getEmails', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include' // ✅ send cookies
   });
 
   const data = await res.json();
