@@ -1,64 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
-import nodemailer from 'nodemailer';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_KEY
 );
-
-// Email transporter (real email system)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
 
 export const handler = async (event) => {
   try {
-    if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Method not allowed' };
+    const { session_token } = JSON.parse(event.body || '{}');
+    if (!session_token) {
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing session token' }) };
     }
 
-    const { from_user, to_user, subject, body } = JSON.parse(event.body || '{}');
+    // 🔐 Verify session and get user email
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('session_token', session_token)
+      .single();
 
-    if (!from_user || !to_user || !body) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ success: false, error: 'Missing required fields' })
-      };
+    if (!sessionData) {
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
     }
 
-    // Save to database
-    await supabase.from('emails').insert({
-      id: uuidv4(),
-      from_user,
-      to_user,
-      subject: subject || '',
-      body
-    });
+    const user_email = sessionData.user_email;
 
-    // Send real email
-    await transporter.sendMail({
-      from: `"Botnev Mail" <${process.env.EMAIL_USER}>`,
-      to: to_user,
-      replyTo: from_user,
-      subject: subject || 'New message',
-      text: body
-    });
+    // ✅ Fetch all emails to this user
+    const { data: emails, error } = await supabase
+      .from('emails')
+      .select('*')
+      .eq('to_user', user_email)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, message: 'Email sent successfully' })
+      body: JSON.stringify({ success: true, emails })
     };
 
   } catch (err) {
-    console.error('SendEmail error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: 'Internal server error' })
-    };
+    console.error('getEmails error:', err);
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error' }) };
   }
 };
