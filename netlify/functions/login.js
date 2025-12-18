@@ -1,3 +1,4 @@
+import fetch from 'node-fetch'; // <-- FIX: import fetch explicitly
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,7 +40,6 @@ function generateEncryptedToken() {
   const uuid = uuidv4();
   const encrypted = cipher.update(uuid, 'utf8', 'hex') + cipher.final('hex');
   const tag = cipher.getAuthTag().toString('hex');
-  // Return IV + TAG + encrypted combined
   return `${iv.toString('hex')}:${tag}:${encrypted}`;
 }
 
@@ -53,11 +53,9 @@ export const handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify({ success: true, redirect: '/.netlify/functions/googleStart' }) };
     }
 
-    // Adaptive rate limiting per IP + email
     const allowed = await checkRateLimit(ip + email);
     if (!allowed) return { statusCode: 429, body: JSON.stringify({ success: false, error: 'Too many login attempts. Try again later.' }) };
 
-    // CAPTCHA verification
     const captchaValid = await verifyCaptcha(captcha_token, ip);
     if (!captchaValid) {
       await logAttempt(ip + email);
@@ -65,39 +63,27 @@ export const handler = async (event) => {
       return { statusCode: 403, body: JSON.stringify({ success: false, error: 'CAPTCHA verification failed' }) };
     }
 
-    // Fetch user
     const { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
 
-    // Ensure password exists for bcrypt
     const userPassword = user?.encrypted_password || user?.password || '';
     const dummyHash = '$2b$12$C6UzMDM.H6dfI/f/IKcEeO';
-    const passwordMatch = user ? await bcrypt.compare(password, userPassword) : await bcrypt.compare(password, dummyHash);
+    const passwordMatch = user ? await bcrypt.compare(password, userPassword) : await bcrypt.compare(dummyHash, dummyHash);
 
-    // Verification & security checks
-    if (
-      !user ||
-      !passwordMatch ||
-      !user.verified ||
-      (user.last_fingerprint && user.last_fingerprint !== deviceFingerprint) ||
-      user.is_honeytoken
-    ) {
+    if (!user || !passwordMatch || !user.verified || (user.last_fingerprint && user.last_fingerprint !== deviceFingerprint) || user.is_honeytoken) {
       await logAttempt(ip + email);
       await randomDelay();
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid email or password or device' }) };
     }
 
-    // Generate session token
     const session_token = generateEncryptedToken();
     const expiresInDays = remember_me ? 90 : 1;
 
-    // Insert session
     await supabase.from('sessions').insert({
       user_email: email,
       session_token,
       expires_at: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
     });
 
-    // Update last fingerprint
     await supabase.from('users').update({ last_fingerprint: deviceFingerprint }).eq('email', email);
 
     return {
