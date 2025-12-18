@@ -1,5 +1,6 @@
 // netlify/functions/getVerifiedUsers.js
 import { createClient } from '@supabase/supabase-js';
+import cookie from 'cookie';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -8,17 +9,19 @@ const supabase = createClient(
 
 export const handler = async (event) => {
   try {
-    const { session_token } = JSON.parse(event.body || '{}');
+    // Parse cookies
+    const cookies = cookie.parse(event.headers.cookie || '');
+    const session_token = cookies.session_token;
     if (!session_token) {
-      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing session token' }) };
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'No session token found' }) };
     }
 
     // Verify session
     const { data: sessionData } = await supabase
       .from('sessions')
-      .select('*')
+      .select('user_email')
       .eq('session_token', session_token)
-      .single();
+      .maybeSingle();
 
     if (!sessionData) {
       return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
