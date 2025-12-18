@@ -1,3 +1,4 @@
+// netlify/functions/getEmails.js
 import { createClient } from '@supabase/supabase-js';
 import cookie from 'cookie';
 
@@ -8,41 +9,43 @@ const supabase = createClient(
 
 export const handler = async (event) => {
   try {
-    // 🍪 Read session_token from HttpOnly cookie
+    // 🍪 Parse cookies
     const cookies = cookie.parse(event.headers.cookie || '');
-    const session_token = cookies.session_token;
+    
+    // ⚠️ Use the actual cookie name your site sets (e.g., ion_token)
+    const session_token = cookies.ion_token; 
 
     if (!session_token) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ success: false, error: 'Not authenticated' })
+        body: JSON.stringify({ success: false, error: 'Not authenticated: missing session token' })
       };
     }
 
     // 🔐 Verify session
-    const { data: sessionData } = await supabase
+    const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('user_email')
       .eq('session_token', session_token)
       .single();
 
-    if (!sessionData) {
+    if (sessionError || !sessionData) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ success: false, error: 'Invalid session' })
+        body: JSON.stringify({ success: false, error: 'Invalid or expired session' })
       };
     }
 
     const user_email = sessionData.user_email;
 
-    // 📥 Fetch inbox emails
-    const { data: emails, error } = await supabase
+    // 📥 Fetch inbox emails for this user
+    const { data: emails, error: emailsError } = await supabase
       .from('emails')
       .select('*')
       .eq('to_user', user_email)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (emailsError) throw emailsError;
 
     return {
       statusCode: 200,
@@ -53,7 +56,7 @@ export const handler = async (event) => {
     console.error('getEmails error:', err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, error: 'Internal server error' })
+      body: JSON.stringify({ success: false, error: 'Internal server error', details: err.message })
     };
   }
 };
