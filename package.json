@@ -21,7 +21,8 @@
     "bcrypt": "^5.1.1",
     "uuid": "^9.0.1",
     "node-fetch": "^2.6.12",
-    "mime-types": "^2.1.35" 
+    "mime-types": "^2.1.35",
+    "cookie": "^0.5.0"
   },
   "engines": {
     "node": ">=18"
