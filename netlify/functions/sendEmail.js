@@ -17,57 +17,80 @@ const transporter =
     : null;
 
 // Rate limiting config
-const RATE_LIMIT_COUNT = 10;
+const RATE_LIMIT_COUNT = 10; // messages per hour
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 
-// Sanitizer for email body & subject
+// Replay attack prevention
+const RECENT_MESSAGE_WINDOW = 5 * 60 * 1000; // 5 min
+
+// Sanitizer
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
 
 export const handler = async (event) => {
   try {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
+    if (event.httpMethod !== 'POST')
+      return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
 
-    // ✅ CSRF protection
+    // ✅ CSRF
     const csrfToken = event.headers['x-csrf-token'];
-    if (!csrfToken || csrfToken !== process.env.CSRF_TOKEN) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'CSRF check failed' }) };
+    if (!csrfToken || csrfToken !== process.env.CSRF_TOKEN)
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'CSRF check failed' }) };
 
-    // ✅ Read secure session cookie
+    // ✅ Read session cookie
     const cookies = cookie.parse(event.headers.cookie || '');
-    let session_token = cookies.session_token;
-    if (!session_token) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'No session cookie found' }) };
+    const session_token = cookies.session_token;
+    if (!session_token)
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'No session cookie found' }) };
 
+    // ✅ Parse & sanitize inputs
     const { to_user, subject, body } = JSON.parse(event.body || '{}');
-
-    // ✅ Input validation & sanitization
-    if (!to_user || !body) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing fields' }) };
-    if (typeof to_user !== 'string' || typeof body !== 'string') return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid field types' }) };
-    if (body.length > 5000) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Message too long' }) };
-    if (subject && subject.length > 255) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Subject too long' }) };
+    if (!to_user || !body)
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Missing fields' }) };
+    if (typeof to_user !== 'string' || typeof body !== 'string')
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid field types' }) };
+    if (body.length > 5000)
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Message too long' }) };
+    if (subject && subject.length > 255)
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Subject too long' }) };
 
     const cleanBody = purify.sanitize(body);
     const cleanSubject = purify.sanitize(subject || '');
 
     // 🔐 Verify session & expiration
-    const { data: session, error: sessionError } = await supabase
+    const { data: session } = await supabase
       .from('sessions')
-      .select('user_email, expires_at')
+      .select('user_email, expires_at, last_fingerprint')
       .eq('session_token', session_token)
       .maybeSingle();
 
-    if (sessionError || !session) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
-    if (new Date(session.expires_at) < new Date()) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Session expired' }) };
+    if (!session) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
+    if (new Date(session.expires_at) < new Date())
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Session expired' }) };
 
     const from_user = session.user_email;
+
+    // ✅ Device fingerprint
+    const fingerprint = event.headers['user-agent'] + event.headers['accept-language'] + (event.headers['x-forwarded-for'] || '');
+    const crypto = require('crypto');
+    const currentFingerprint = crypto.createHash('sha256').update(fingerprint).digest('hex');
+    if (session.last_fingerprint && session.last_fingerprint !== currentFingerprint)
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Device mismatch' }) };
 
     // ✅ Rate limiting per user
     const { data: recentMessages } = await supabase
       .from('emails')
-      .select('id')
+      .select('id, created_at')
       .eq('from_user', from_user)
       .gte('created_at', new Date(Date.now() - RATE_LIMIT_WINDOW));
 
-    if (recentMessages?.length >= RATE_LIMIT_COUNT) return { statusCode: 429, body: JSON.stringify({ success: false, error: 'Rate limit exceeded. Try later.' }) };
+    if (recentMessages?.length >= RATE_LIMIT_COUNT)
+      return { statusCode: 429, body: JSON.stringify({ success: false, error: 'Rate limit exceeded. Try later.' }) };
+
+    // ✅ Replay attack prevention
+    const duplicate = recentMessages?.find(m => m.created_at && new Date() - new Date(m.created_at) < RECENT_MESSAGE_WINDOW && cleanBody === m.body);
+    if (duplicate)
+      return { statusCode: 429, body: JSON.stringify({ success: false, error: 'Duplicate message detected. Wait before retrying.' }) };
 
     // ✅ Verify sender & recipient
     const { data: sender } = await supabase.from('users').select('email, verified').eq('email', from_user).eq('verified', true).maybeSingle();
@@ -79,28 +102,31 @@ export const handler = async (event) => {
     // 📨 Store internal message
     await supabase.from('emails').insert({ id: uuidv4(), from_user, to_user, subject: cleanSubject, body: cleanBody });
 
-    // ✉️ Send real email
+    // ✉️ Send email
     if (transporter) {
-      await transporter.sendMail({ from: `"Botnev Mail" <${process.env.EMAIL_USER}>`, to: to_user, replyTo: from_user, subject: cleanSubject || `New message from ${from_user}`, text: cleanBody });
+      await transporter.sendMail({
+        from: `"Botnev Mail" <${process.env.EMAIL_USER}>`,
+        to: to_user,
+        replyTo: from_user,
+        subject: cleanSubject || `New message from ${from_user}`,
+        text: cleanBody
+      });
     } else {
       console.log(`Transporter not configured. Message to ${to_user}:`, cleanBody);
     }
 
     // ✅ Logging
-    console.log(`Message sent from ${from_user} to ${to_user} at ${new Date().toISOString()}`);
+    console.log(`[SECURE] Message sent from ${from_user} to ${to_user} at ${new Date().toISOString()}`);
 
-    // 🔄 Optional: Rotate session token after sending
+    // 🔄 Rotate session token
     const newSessionToken = uuidv4();
-    await supabase.from('sessions').update({ session_token: newSessionToken, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000) }).eq('session_token', session_token);
-    
+    await supabase.from('sessions').update({ session_token: newSessionToken, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), last_fingerprint: currentFingerprint }).eq('session_token', session_token);
+
     return {
       statusCode: 200,
-      headers: {
-        'Set-Cookie': `session_token=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Strict`
-      },
+      headers: { 'Set-Cookie': `session_token=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Strict` },
       body: JSON.stringify({ success: true, message: 'Message sent successfully' })
     };
-
   } catch (err) {
     console.error('sendEmail error:', err);
     return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Server error', details: err.message }) };
