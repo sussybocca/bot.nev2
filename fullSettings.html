@@ -24,25 +24,41 @@ button:hover { background:#0056b3; }
 <div id="output"></div>
 
 <script>
-const email = prompt("Enter your email"); // or get from session
+async function getSessionToken() {
+  // Get session_token from cookie
+  const token = document.cookie.split('; ').find(c => c.startsWith('session_token='))?.split('=')[1];
+  if (!token) throw new Error('No session token found');
+  return token;
+}
 
 async function loadUser() {
-  const res = await fetch('/.netlify/functions/getUser', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ email })
-  });
-  const data = await res.json();
-  if (!data.success) { document.getElementById('output').textContent = data.error; return; }
-  renderForm(data.user);
+  try {
+    const session_token = await getSessionToken();
+    const res = await fetch('/.netlify/functions/getUser', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ session_token })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      document.getElementById('output').textContent = data.error;
+      return;
+    }
+    renderForm(data.user);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('output').textContent = 'Failed to load user.';
+  }
 }
 
 function renderForm(user) {
   const container = document.getElementById('formContainer');
   container.innerHTML = '';
 
-  for (const key in user) {
-    const value = user[key];
+  const allowedFields = ['username','display_name','bio','profile_picture','password','email_notification'];
+
+  allowedFields.forEach(key => {
+    const value = user[key] ?? '';
     const group = document.createElement('div');
     group.className = 'form-group';
 
@@ -50,61 +66,55 @@ function renderForm(user) {
     label.textContent = key;
 
     let input;
-    if (typeof value === 'boolean') {
+    if (key === 'password') {
+      input = document.createElement('input');
+      input.type = 'password';
+      input.placeholder = 'Leave blank to keep current';
+    } else if (typeof value === 'boolean') {
       input = document.createElement('select');
       ['true','false'].forEach(v => {
         const opt = document.createElement('option');
         opt.value = v; opt.text = v; if(value.toString()===v) opt.selected=true;
         input.appendChild(opt);
       });
-    } else if (typeof value === 'number') {
-      input = document.createElement('input');
-      input.type = 'number';
-      input.value = value;
-    } else if (typeof value === 'object' && value !== null) {
-      input = document.createElement('textarea');
-      input.value = JSON.stringify(value, null, 2);
-    } else if (key.includes('password')) {
-      input = document.createElement('input');
-      input.type = 'password';
-      input.placeholder = 'Leave blank to keep current';
     } else {
       input = document.createElement('input');
       input.type = 'text';
-      input.value = value || '';
+      input.value = value;
     }
 
     input.id = `field_${key}`;
     group.appendChild(label);
     group.appendChild(input);
     container.appendChild(group);
-  }
+  });
 }
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
-  const updates = {};
-  document.querySelectorAll('#formContainer .form-group').forEach(group => {
-    const input = group.querySelector('input, textarea, select');
-    if (input) {
+  try {
+    const session_token = await getSessionToken();
+    const updates = {};
+    document.querySelectorAll('#formContainer .form-group').forEach(group => {
+      const input = group.querySelector('input, select');
+      if (!input) return;
       let val = input.value;
       const key = input.id.replace('field_','');
-
       if (input.tagName==='SELECT') val = val==='true';
-      else if (input.tagName==='TEXTAREA') {
-        try { val = JSON.parse(val); } catch(e){}
-      }
+      if(val!=='' || key==='password') updates[key] = val;
+    });
 
-      if(val!=='' || key.toLowerCase().includes('password')) updates[key]=val;
-    }
-  });
+    const res = await fetch('/.netlify/functions/updateFullProfile', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ session_token, updates })
+    });
 
-  const res = await fetch('/.netlify/functions/updateFullProfile', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ email, updates })
-  });
-  const data = await res.json();
-  document.getElementById('output').textContent = data.success ? data.message : `Error: ${data.error}`;
+    const data = await res.json();
+    document.getElementById('output').textContent = data.success ? data.message : `Error: ${data.error}`;
+  } catch(err) {
+    console.error(err);
+    document.getElementById('output').textContent = 'Failed to update profile.';
+  }
 });
 
 loadUser();
