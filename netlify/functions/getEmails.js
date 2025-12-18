@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import cookie from 'cookie';
 
+// Use service key for secure server-side access
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -12,8 +13,8 @@ export const handler = async (event) => {
     // 🍪 Parse cookies
     const cookies = cookie.parse(event.headers.cookie || '');
     
-    // ⚠️ Use the actual cookie name your site sets (e.g., ion_token)
-    const session_token = cookies.ion_token; 
+    // ✅ Make sure this matches the cookie your login sets
+    const session_token = cookies['__Host-session_secure'] || cookies['session_token']; 
 
     if (!session_token) {
       return {
@@ -47,6 +48,7 @@ export const handler = async (event) => {
 
     if (emailsError) throw emailsError;
 
+    // ✅ Return emails safely
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true, emails })
