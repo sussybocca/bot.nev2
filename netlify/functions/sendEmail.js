@@ -3,28 +3,24 @@ import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
 import cookie from 'cookie';
 
-// Initialize Supabase with service role key for secure server-side access
+// Initialize Supabase with service role key
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Nodemailer with forced TLS and app password
+// Nodemailer with TLS
 const transporter = nodemailer.createTransport({
   service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  secure: true, // force TLS
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  secure: true,
 });
 
-// Basic sanitization to prevent HTML/script injection
+// Basic sanitization to prevent injection
 const sanitize = (str) => {
   if (!str) return '';
-  return str
-    .replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
-    .replace(/(\r|\n)/g, ''); // prevent header injection
+  return str.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
+            .replace(/(\r|\n)/g, ''); // prevent header injection
 };
 
-// Simple regex to validate emails
+// Simple email validation
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 export const handler = async (event) => {
@@ -33,9 +29,10 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
     }
 
-    // Parse secure session cookie
+    // Use the login cookie from your login page
     const cookies = cookie.parse(event.headers.cookie || '');
-    const session_token = cookies['__Host-session_secure'];
+    const session_token = cookies['session_token']; // ← matches login cookie
+
     if (!session_token) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
     }
@@ -70,11 +67,8 @@ export const handler = async (event) => {
 
     // Parse request body
     let payload;
-    try {
-      payload = JSON.parse(event.body || '{}');
-    } catch {
-      return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid JSON' }) };
-    }
+    try { payload = JSON.parse(event.body || '{}'); } 
+    catch { return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid JSON' }) }; }
 
     let { to_user, subject, body } = payload;
 
@@ -86,7 +80,6 @@ export const handler = async (event) => {
     subject = sanitize(subject || 'New message');
     body = sanitize(body);
 
-    // Validate recipient email format
     if (!isValidEmail(to_user)) {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Recipient email is invalid' }) };
     }
@@ -112,7 +105,7 @@ export const handler = async (event) => {
       created_at: new Date().toISOString(),
     });
 
-    // Send actual email with proper sender info
+    // Send email using sender info
     await transporter.sendMail({
       from: `"${senderData.username}" <${senderData.email}>`,
       to: recipientData.email,
@@ -128,6 +121,7 @@ export const handler = async (event) => {
         message: `Email sent successfully from ${senderData.username} (${senderData.email}) to ${recipientData.username || recipientData.email}`,
       }),
     };
+
   } catch (err) {
     console.error('sendEmail error:', err);
     return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error' }) };
