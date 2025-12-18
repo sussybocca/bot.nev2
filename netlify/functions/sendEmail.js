@@ -6,10 +6,7 @@ import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import crypto from 'crypto';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const transporter =
   process.env.EMAIL_USER && process.env.EMAIL_PASS
@@ -29,64 +26,29 @@ const purify = DOMPurify(window);
 
 export const handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://botnet2.netlify.app/email?ref=@dude', // replace with your frontend
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Credentials': 'true'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers };
 
   try {
-    if (event.httpMethod !== 'POST') {
+    if (event.httpMethod !== 'POST')
       return { statusCode: 405, headers, body: JSON.stringify({ success: false }) };
-    }
 
     const cookies = cookie.parse(event.headers.cookie || '');
-
-    /* ======================
-       CSRF — COOKIE BASED
-    ====================== */
     const csrfCookie = cookies.csrf_token;
+    if (!csrfCookie || csrfCookie !== process.env.CSRF_TOKEN)
+      return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'CSRF validation failed' }) };
 
-    if (!csrfCookie) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ success: false, error: 'Missing CSRF cookie' })
-      };
-    }
-
-    // Compare cookie value to ENV secret
-    if (csrfCookie !== process.env.CSRF_TOKEN) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ success: false, error: 'CSRF validation failed' })
-      };
-    }
-
-    /* ======================
-       SESSION COOKIE
-    ====================== */
     const session_token = cookies.session_token;
-    if (!session_token) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ success: false, error: 'No session cookie found' })
-      };
-    }
+    if (!session_token)
+      return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'No session cookie' }) };
 
     const { to_user, subject, body } = JSON.parse(event.body || '{}');
-    if (!to_user || !body) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, error: 'Missing fields' })
-      };
-    }
+    if (!to_user || !body)
+      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Missing fields' }) };
 
     const cleanBody = purify.sanitize(body);
     const cleanSubject = purify.sanitize(subject || '');
@@ -97,83 +59,38 @@ export const handler = async (event) => {
       .eq('session_token', session_token)
       .maybeSingle();
 
-    if (!session) {
-      return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
-    }
-
-    if (new Date(session.expires_at) < new Date()) {
+    if (!session) return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Invalid session' }) };
+    if (new Date(session.expires_at) < new Date())
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Session expired' }) };
-    }
 
     const from_user = session.user_email;
 
-    /* ======================
-       DEVICE FINGERPRINT
-    ====================== */
-    const fingerprintSource =
-      event.headers['user-agent'] +
-      event.headers['accept-language'] +
-      (event.headers['x-forwarded-for'] || '');
+    const fingerprintSource = event.headers['user-agent'] + event.headers['accept-language'] + (event.headers['x-forwarded-for'] || '');
+    const currentFingerprint = crypto.createHash('sha256').update(fingerprintSource).digest('hex');
 
-    const currentFingerprint = crypto
-      .createHash('sha256')
-      .update(fingerprintSource)
-      .digest('hex');
-
-    if (session.last_fingerprint && session.last_fingerprint !== currentFingerprint) {
+    if (session.last_fingerprint && session.last_fingerprint !== currentFingerprint)
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Device mismatch' }) };
-    }
 
-    /* ======================
-       RATE LIMIT
-    ====================== */
+    // Rate limit
     const { data: recentMessages } = await supabase
       .from('emails')
       .select('id, body, created_at')
       .eq('from_user', from_user)
       .gte('created_at', new Date(Date.now() - RATE_LIMIT_WINDOW));
 
-    if (recentMessages?.length >= RATE_LIMIT_COUNT) {
+    if (recentMessages?.length >= RATE_LIMIT_COUNT)
       return { statusCode: 429, headers, body: JSON.stringify({ success: false, error: 'Rate limit exceeded' }) };
-    }
 
-    const duplicate = recentMessages?.find(
-      m => new Date() - new Date(m.created_at) < RECENT_MESSAGE_WINDOW && m.body === cleanBody
-    );
+    const duplicate = recentMessages?.find(m => new Date() - new Date(m.created_at) < RECENT_MESSAGE_WINDOW && m.body === cleanBody);
+    if (duplicate) return { statusCode: 429, headers, body: JSON.stringify({ success: false, error: 'Duplicate message detected' }) };
 
-    if (duplicate) {
-      return { statusCode: 429, headers, body: JSON.stringify({ success: false, error: 'Duplicate message detected' }) };
-    }
+    const { data: sender } = await supabase.from('users').select('email').eq('email', from_user).eq('verified', true).maybeSingle();
+    if (!sender) return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sender not verified' }) };
 
-    const { data: sender } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', from_user)
-      .eq('verified', true)
-      .maybeSingle();
+    const { data: recipient } = await supabase.from('users').select('email').eq('email', to_user).eq('verified', true).maybeSingle();
+    if (!recipient) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Recipient not found' }) };
 
-    if (!sender) {
-      return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sender not verified' }) };
-    }
-
-    const { data: recipient } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', to_user)
-      .eq('verified', true)
-      .maybeSingle();
-
-    if (!recipient) {
-      return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Recipient not found' }) };
-    }
-
-    await supabase.from('emails').insert({
-      id: uuidv4(),
-      from_user,
-      to_user,
-      subject: cleanSubject,
-      body: cleanBody
-    });
+    await supabase.from('emails').insert({ id: uuidv4(), from_user, to_user, subject: cleanSubject, body: cleanBody });
 
     if (transporter) {
       await transporter.sendMail({
@@ -185,31 +102,11 @@ export const handler = async (event) => {
       });
     }
 
-    const newSessionToken = uuidv4();
-    await supabase
-      .from('sessions')
-      .update({
-        session_token: newSessionToken,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        last_fingerprint: currentFingerprint
-      })
-      .eq('session_token', session_token);
-
-    return {
-      statusCode: 200,
-      headers: {
-        ...headers,
-        'Set-Cookie': `session_token=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax`
-      },
-      body: JSON.stringify({ success: true })
-    };
+    // Do NOT rotate session token here — leave it for login only
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
 
   } catch (err) {
     console.error(err);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ success: false, error: 'Server error' })
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'Server error' }) };
   }
 };
