@@ -62,10 +62,14 @@ button { padding: 10px 15px; margin-top: 10px; }
 let currentStep = 1;
 let fbxSelected = [];
 
-// Session token from cookie
+// Session token from cookie (__Host-session_secure preferred)
 function getSessionToken() {
-  const match = document.cookie.match(/session_token=([^;]+)/);
-  return match ? match[1] : null;
+  const cookies = document.cookie.split(';').reduce((acc, c) => {
+    const [k,v] = c.trim().split('=');
+    acc[k] = v;
+    return acc;
+  }, {});
+  return cookies['__Host-session_secure'] || cookies['session_token'] || null;
 }
 
 // FBX selection
@@ -91,14 +95,22 @@ function showStep(step){
 // Send step data to backend
 async function sendStepData(step,data){
   const session_token = getSessionToken();
-  if(!session_token) { alert("No session token found"); return; }
+  if(!session_token) { 
+    document.getElementById('message').innerText = "No session token found"; 
+    return {success:false, error:"No session token"}; 
+  }
 
-  const res = await fetch('/.netlify/functions/profileCreation',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({step,session_token,...data})
-  });
-  return await res.json();
+  try {
+    const res = await fetch('/.netlify/functions/profileCreation', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({step, session_token, ...data})
+    });
+    return await res.json();
+  } catch(err){
+    console.error('Error sending step data:', err);
+    return {success:false, error:'Failed to communicate with server'};
+  }
 }
 
 // Next step
