@@ -60,7 +60,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-         "user_id": "550e8400-e29b-41d4-a716-446655440000",
+          user_id: null, // <-- allow null if no user exists
           site_name: siteName,
           files
         })
