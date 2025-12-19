@@ -17,40 +17,29 @@
 
 <input type="text" id="siteName" placeholder="Enter site name (letters, numbers, -)" />
 <input type="file" id="zipFile" accept=".zip" />
-<button id="githubLoginBtn">Login with GitHub</button>
+<button id="createSiteBtn">Create Site</button>
 <select id="repoSelect" style="display:none;">
   <option value="">Select a repo</option>
 </select>
-<button id="createSiteBtn" style="display:none;">Create Site</button>
 
 <iframe id="previewFrame"></iframe>
 
 <script type="module">
   const zipInput = document.getElementById('zipFile');
   const siteNameInput = document.getElementById('siteName');
-  const githubLoginBtn = document.getElementById('githubLoginBtn');
-  const repoSelect = document.getElementById('repoSelect');
   const createBtn = document.getElementById('createSiteBtn');
+  const repoSelect = document.getElementById('repoSelect');
   const previewFrame = document.getElementById('previewFrame');
 
-  let githubCode = '';
-
-  // GitHub OAuth login: handled by the backend (create-site manages CLIENT_ID/SECRET)
-  githubLoginBtn.addEventListener('click', () => {
-    // Redirect to GitHub OAuth login
-    window.location.href = 'https://github.com/login/oauth/authorize?scope=repo&client_id=dummy';
-    // Note: the backend uses CLIENT_ID/SECRET to exchange the code. This redirect is just to start login.
-  });
-
-  // Check for GitHub code in URL
+  // Extract GitHub OAuth code from URL
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('code')) {
-    githubCode = urlParams.get('code');
-    githubLoginBtn.style.display = 'none';
-    repoSelect.style.display = 'block';
-    createBtn.style.display = 'block';
+  const githubCode = urlParams.get('code'); // This is exchanged by create-site internally
 
-    // Get user repos via create-site function
+  if (!githubCode) {
+    alert('You must log in with GitHub first and authorize the app.');
+  } else {
+    // Show repo select (create-site will return repos)
+    repoSelect.style.display = 'block';
     fetch('/.netlify/functions/create-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -98,7 +87,7 @@
         }
       }
 
-      // Call create-site function (handles OAuth internally)
+      // Call create-site function (handles GitHub OAuth and pushing internally)
       const response = await fetch('/.netlify/functions/create-site', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
