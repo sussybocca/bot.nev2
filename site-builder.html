@@ -42,14 +42,28 @@
     }
 
     try {
-      // 1️⃣ Register the site with create-site function
-      const formData = new FormData();
-      formData.append('site_name', siteName);
-      formData.append('zip', file);
+      // 1️⃣ Extract ZIP contents
+      const jszip = new JSZip();
+      const zipData = await jszip.loadAsync(file);
+      const files = {};
 
+      // Convert each file in the ZIP to text
+      await Promise.all(Object.keys(zipData.files).map(async (filename) => {
+        if (!zipData.files[filename].dir) {
+          const content = await zipData.files[filename].async('text');
+          files[filename] = content;
+        }
+      }));
+
+      // 2️⃣ Send JSON to create-site function
       const response = await fetch('/.netlify/functions/create-site', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: 'example_user_id', // replace with real user ID
+          site_name: siteName,
+          files
+        })
       });
 
       const data = await response.json();
@@ -58,14 +72,13 @@
         return;
       }
 
-      // 2️⃣ Preview the site via serve-site function automatically
-      // Wildcard subdomain means the URL is now under fire-usa.com
+      // 3️⃣ Preview the site
       alert(`Site created! Visit: ${data.url}`);
       previewFrame.src = data.url;
 
     } catch (err) {
-      console.error(err);
-      alert('Error creating site.');
+      console.error('Error creating site:', err);
+      alert('Error creating site. Check console for details.');
     }
   });
 </script>
