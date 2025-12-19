@@ -32,9 +32,9 @@ export const handler = async (event) => {
 
     const { user_id, site_name, files } = body;
 
-    // Validate inputs
-    if (!user_id || !site_name) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing user_id or site_name' }) };
+    // Require site_name
+    if (!site_name) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Missing site_name' }) };
     }
 
     if (!/^[a-z0-9-]{3,30}$/.test(site_name)) {
@@ -45,7 +45,7 @@ export const handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing or invalid files object' }) };
     }
 
-    // Check if the subdomain already exists
+    // Check if subdomain already exists
     const { data: existing, error: selectError } = await supabase
       .from('sites')
       .select('subdomain')
@@ -61,7 +61,7 @@ export const handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Subdomain already exists' }) };
     }
 
-    // Split each file content into chunks
+    // Chunk files if needed
     const chunkedFiles = {};
     for (const [filename, content] of Object.entries(files)) {
       chunkedFiles[filename] = chunkString(content, 50000); // 50 KB per chunk
@@ -71,20 +71,18 @@ export const handler = async (event) => {
     const expires_at = new Date();
     expires_at.setMonth(expires_at.getMonth() + 1);
 
-    // Insert new site with chunked files
+    // Insert new site
+    const { error: insertError } = await supabase
+      .from('sites')
+      .insert({
+        user_id: user_id || null,
+        subdomain: site_name,
+        files: chunkedFiles,
+        expires_at,
+        created_at: new Date()
+      });
 
-  const { error: insertError } = await supabase
-  .from('sites')
-  .insert({
-    user_id: user_id || null,  // <-- if no user, insert null
-    subdomain: site_name,
-    files: chunkedFiles,
-    expires_at,
-    created_at: new Date()
-  });
-
-
-      if (insertError) {
+    if (insertError) {
       console.error('Supabase insert error:', insertError);
       return { statusCode: 500, body: JSON.stringify({ error: 'Supabase insert error', details: insertError.message }) };
     }
