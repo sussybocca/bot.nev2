@@ -35,15 +35,14 @@
 
   let githubCode = '';
 
-  // GitHub OAuth login (directly using GitHub)
+  // GitHub OAuth login: handled by the backend (create-site manages CLIENT_ID/SECRET)
   githubLoginBtn.addEventListener('click', () => {
-    const clientId = '<YOUR_CLIENT_ID>'; // your GitHub OAuth app client_id
-    const redirectUri = window.location.href.split('?')[0]; // redirect back to same page
-    const scope = 'repo';
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}`;
+    // Redirect to GitHub OAuth login
+    window.location.href = 'https://github.com/login/oauth/authorize?scope=repo&client_id=dummy';
+    // Note: the backend uses CLIENT_ID/SECRET to exchange the code. This redirect is just to start login.
   });
 
-  // Check if GitHub redirected back with a code
+  // Check for GitHub code in URL
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('code')) {
     githubCode = urlParams.get('code');
@@ -51,7 +50,7 @@
     repoSelect.style.display = 'block';
     createBtn.style.display = 'block';
 
-    // Fetch user's repos using the same create-site function
+    // Get user repos via create-site function
     fetch('/.netlify/functions/create-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
