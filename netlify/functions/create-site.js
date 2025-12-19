@@ -72,17 +72,19 @@ export const handler = async (event) => {
     expires_at.setMonth(expires_at.getMonth() + 1);
 
     // Insert new site with chunked files
-    const { error: insertError } = await supabase
-      .from('sites')
-      .insert({
-        user_id,
-        subdomain: site_name,
-        files: chunkedFiles,
-        expires_at,
-        created_at: new Date()
-      });
 
-    if (insertError) {
+  const { error: insertError } = await supabase
+  .from('sites')
+  .insert({
+    user_id: user_id || null,  // <-- if no user, insert null
+    subdomain: site_name,
+    files: chunkedFiles,
+    expires_at,
+    created_at: new Date()
+  });
+
+
+      if (insertError) {
       console.error('Supabase insert error:', insertError);
       return { statusCode: 500, body: JSON.stringify({ error: 'Supabase insert error', details: insertError.message }) };
     }
