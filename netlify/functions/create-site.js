@@ -68,6 +68,20 @@ async function pushSiteToGitHub(userToken, owner, repoName, files) {
 // Lambda / API handler
 export const handler = async (event) => {
   try {
+    // NEW: Handle GET requests for login redirect
+    if (event.httpMethod === 'GET' && event.queryStringParameters?.action === 'login') {
+      const clientId = process.env.CLIENT_ID;
+      const redirectUri = event.headers.origin || 'https://your-site.com'; // adjust your domain
+      const scope = 'repo';
+      return {
+        statusCode: 302,
+        headers: {
+          Location: `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}`
+        },
+        body: ''
+      };
+    }
+
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
