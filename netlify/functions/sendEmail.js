@@ -31,7 +31,7 @@ export const handler = async (event) => {
 
     // Use the login cookie from your login page
     const cookies = cookie.parse(event.headers.cookie || '');
-    const session_token = cookies['session_token']; // ← matches login cookie
+    const session_token = cookies['__Host-login_token']; // <- your login cookie
 
     if (!session_token) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
