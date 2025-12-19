@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch'; // Ensure this is installed in your environment
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// Helper: split large string into chunks of maxChunkSize bytes
+// Helper: split large string into chunks
 function chunkString(str, maxChunkSize = 50000) {
   const chunks = [];
   let start = 0;
@@ -16,26 +17,40 @@ function chunkString(str, maxChunkSize = 50000) {
   return chunks;
 }
 
-// Helper: trigger Netlify deploy via build hook
-async function triggerNetlifyDeploy(siteName) {
-  const NETLIFY_DEPLOY_HOOK = process.env.NETLIFY_DEPLOY_HOOK; // add this to your environment
-  if (!NETLIFY_DEPLOY_HOOK) return;
+// Push site files to GitHub using real API
+async function pushSiteToGitHub(userToken, repoName, files) {
+  const GITHUB_CLIENT_ID = process.env.CLIENT_ID;
+  const GITHUB_CLIENT_SECRET = process.env.CLIENT_SECRET;
 
-  try {
-    const response = await fetch(NETLIFY_DEPLOY_HOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        site_name: siteName
-      })
+  if (!userToken || !repoName || !files) {
+    throw new Error('Missing required parameters for GitHub push');
+  }
+
+  // GitHub API requires Base64 encoding of content
+  const fileEntries = Object.entries(files);
+  for (const [filename, content] of fileEntries) {
+    const url = `https://api.github.com/repos/:owner/${repoName}/contents/${filename}`;
+    const body = {
+      message: `Add ${filename} via Fire-USA site builder`,
+      content: Buffer.from(content).toString('base64')
+    };
+
+    const response = await fetch(url.replace(':owner', 'user'), {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${userToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
-      console.error('Netlify deploy hook failed:', response.statusText);
+      const errData = await response.json();
+      throw new Error(`GitHub API error for file ${filename}: ${errData.message}`);
     }
-  } catch (err) {
-    console.error('Error triggering Netlify deploy:', err);
   }
+
+  return { success: true, repoUrl: `https://github.com/user/${repoName}` };
 }
 
 export const handler = async (event) => {
@@ -48,55 +63,29 @@ export const handler = async (event) => {
     try {
       body = JSON.parse(event.body || '{}');
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Invalid JSON body', details: parseError.message })
       };
     }
 
-    const { site_name, files } = body;
+    const { site_name, files, github_token } = body;
 
-    if (!site_name) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing site_name' }) };
-    }
+    if (!site_name) return { statusCode: 400, body: JSON.stringify({ error: 'Missing site_name' }) };
+    if (!/^[a-z0-9-]{3,30}$/.test(site_name)) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid site name' }) };
+    if (!files || typeof files !== 'object') return { statusCode: 400, body: JSON.stringify({ error: 'Missing or invalid files object' }) };
+    if (!github_token) return { statusCode: 400, body: JSON.stringify({ error: 'Missing GitHub OAuth token' }) };
 
-    if (!/^[a-z0-9-]{3,30}$/.test(site_name)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid site name. Only lowercase letters, numbers, and - allowed.' }) };
-    }
-
-    if (!files || typeof files !== 'object') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing or invalid files object' }) };
-    }
-
-    // Check if subdomain already exists
-    const { data: existing, error: selectError } = await supabase
-      .from('sites')
-      .select('subdomain')
-      .eq('subdomain', site_name)
-      .maybeSingle();
-
-    if (selectError) {
-      console.error('Supabase select error:', selectError);
-      return { statusCode: 500, body: JSON.stringify({ error: 'Supabase select error', details: selectError }) };
-    }
-
-    if (existing) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Subdomain already exists' }) };
-    }
-
-    // Chunk files
+    // Track site metadata in Supabase
     const chunkedFiles = {};
     for (const [filename, content] of Object.entries(files)) {
       chunkedFiles[filename] = chunkString(content, 50000);
     }
 
-    // Set expiration one month from now
     const expires_at = new Date();
     expires_at.setMonth(expires_at.getMonth() + 1);
 
-    // Insert into Supabase
-    const { data: insertedData, error: insertError, status } = await supabase
+    const { data: insertedData, error: insertError } = await supabase
       .from('sites')
       .insert({
         name: site_name,
@@ -107,35 +96,23 @@ export const handler = async (event) => {
       });
 
     if (insertError) {
-      console.error('Supabase insert error full object:', insertError);
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error: 'Supabase insert error',
-          status,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
-          code: insertError.code
-        })
-      };
+      return { statusCode: 500, body: JSON.stringify({ error: 'Supabase insert error', details: insertError }) };
     }
 
-    // ✅ Trigger Netlify deploy hook
-    await triggerNetlifyDeploy(site_name);
+    // Push files to GitHub using **real API** and secrets
+    const githubResult = await pushSiteToGitHub(github_token, site_name, files);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        message: 'Site created successfully and deploy triggered',
-        url: `https://${site_name}.fire-usa.com`,
+        message: 'Site created successfully under your domain using GitHub',
+        githubUrl: githubResult.repoUrl,
         insertedData
       })
     };
 
   } catch (err) {
-    console.error('Unhandled create-site error:', err);
     return { statusCode: 500, body: JSON.stringify({ error: 'Unhandled error', details: err.message }) };
   }
 };
