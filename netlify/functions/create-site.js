@@ -5,6 +5,17 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// Helper: split large string into chunks of maxChunkSize bytes
+function chunkString(str, maxChunkSize = 50000) {
+  const chunks = [];
+  let start = 0;
+  while (start < str.length) {
+    chunks.push(str.slice(start, start + maxChunkSize));
+    start += maxChunkSize;
+  }
+  return chunks;
+}
+
 export const handler = async (event) => {
   try {
     if (event.httpMethod !== 'POST') {
@@ -23,24 +34,15 @@ export const handler = async (event) => {
 
     // Validate inputs
     if (!user_id || !site_name) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Missing user_id or site_name' })
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Missing user_id or site_name' }) };
     }
 
     if (!/^[a-z0-9-]{3,30}$/.test(site_name)) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Invalid site name. Only lowercase letters, numbers, and - allowed.' })
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid site name. Only lowercase letters, numbers, and - allowed.' }) };
     }
 
     if (!files || typeof files !== 'object') {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Missing or invalid files object' })
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Missing or invalid files object' }) };
     }
 
     // Check if the subdomain already exists
@@ -56,23 +58,26 @@ export const handler = async (event) => {
     }
 
     if (existing) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Subdomain already exists' })
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Subdomain already exists' }) };
+    }
+
+    // Split each file content into chunks
+    const chunkedFiles = {};
+    for (const [filename, content] of Object.entries(files)) {
+      chunkedFiles[filename] = chunkString(content, 50000); // 50 KB per chunk
     }
 
     // Set expiration one month from now
     const expires_at = new Date();
     expires_at.setMonth(expires_at.getMonth() + 1);
 
-    // Insert new site with files
+    // Insert new site with chunked files
     const { error: insertError } = await supabase
       .from('sites')
       .insert({
         user_id,
         subdomain: site_name,
-        files,
+        files: chunkedFiles,
         expires_at,
         created_at: new Date()
       });
@@ -82,7 +87,6 @@ export const handler = async (event) => {
       return { statusCode: 500, body: JSON.stringify({ error: 'Supabase insert error', details: insertError.message }) };
     }
 
-    // Return URL matching wildcard domain
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -94,9 +98,6 @@ export const handler = async (event) => {
 
   } catch (err) {
     console.error('Unhandled create-site error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Unhandled error', details: err.message })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: 'Unhandled error', details: err.message }) };
   }
 };
