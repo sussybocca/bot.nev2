@@ -1,7 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import cookie from 'cookie';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Generate device fingerprint hash
+function getDeviceFingerprint(headers) {
+  const source = headers['user-agent'] + headers['accept-language'] + (headers['x-forwarded-for'] || '');
+  return crypto.createHash('sha256').update(source).digest('hex');
+}
 
 export const handler = async (event) => {
   try {
@@ -9,35 +17,46 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
     }
 
-    const cookies = event.headers.cookie || '';
-    const match = cookies.match(/session_token=([^;]+)/);
-    const session_token = match ? match[1] : null;
+    // 🍪 Parse cookies
+    const cookies = cookie.parse(event.headers.cookie || '');
+    const session_token = cookies['__Host-session_secure'] || cookies['session_token'];
 
     if (!session_token) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Unauthorized: No session token.' }) };
     }
 
     // Verify session
-    const { data: sessionData } = await supabase
+    const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
-      .select('user_email')
+      .select('user_email, fingerprint, expires_at')
       .eq('session_token', session_token)
       .single();
 
-    if (!sessionData) {
-      return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid session.' }) };
+    if (sessionError || !sessionData) {
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid or expired session.' }) };
+    }
+
+    // Check session expiration
+    if (new Date(sessionData.expires_at) < new Date()) {
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Session expired.' }) };
+    }
+
+    // Device fingerprint check
+    const currentFingerprint = getDeviceFingerprint(event.headers);
+    if (sessionData.fingerprint && sessionData.fingerprint !== currentFingerprint) {
+      return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Session invalid for this device.' }) };
     }
 
     const user_email = sessionData.user_email;
 
     // Fetch user
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('email', user_email)
       .single();
 
-    if (!user) {
+    if (userError || !user) {
       return { statusCode: 404, body: JSON.stringify({ success: false, error: 'User not found.' }) };
     }
 
@@ -92,9 +111,9 @@ export const handler = async (event) => {
     // Change password
     if(new_password){
       if(!current_password) return { statusCode:400, body:JSON.stringify({success:false, error:'Current password required'})};
-      const match = await bcrypt.compare(current_password, user.password);
+      const match = await bcrypt.compare(current_password, user.encrypted_password || user.password);
       if(!match) return { statusCode:401, body:JSON.stringify({success:false, error:'Incorrect current password'})};
-      updates.password = await bcrypt.hash(new_password, 10);
+      updates.encrypted_password = await bcrypt.hash(new_password, 10);
     }
 
     // Remove undefined values
@@ -110,10 +129,20 @@ export const handler = async (event) => {
 
     if(updateError) return { statusCode:500, body:JSON.stringify({success:false, error:'Failed to update profile', details:updateError})};
 
-    return { statusCode:200, body:JSON.stringify({success:true, message:'Profile updated successfully!', user:{...user,...updatedUser,password:undefined}})};
+    return {
+      statusCode:200, 
+      body:JSON.stringify({
+        success:true, 
+        message:'Profile updated successfully!', 
+        user:{...user,...updatedUser,password:undefined}
+      })
+    };
 
   } catch(err){
     console.error('ProfileCreation error:', err);
-    return { statusCode:500, body:JSON.stringify({success:false, error:'Internal server error', details:err.message})};
+    return {
+      statusCode:500, 
+      body:JSON.stringify({success:false, error:'Internal server error', details:err.message})
+    };
   }
 };
