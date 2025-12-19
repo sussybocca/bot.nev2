@@ -3,7 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Friend Requests & Create Bot</title>
+
+<!-- Page Title & Description -->
+<title>Friend Requests & Create Bot — Botnev</title>
+<meta name="description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
+
+<!-- Open Graph (for social media sharing) -->
+<meta property="og:title" content="Friend Requests & Create Bot — Botnev">
+<meta property="og:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
+<meta property="og:image" content="https://botnet2.netlify.app/assets/og-image.png">
+<meta property="og:url" content="https://botnet2.netlify.app/create-bot.html">
+<meta property="og:type" content="website">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Friend Requests & Create Bot — Botnev">
+<meta name="twitter:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
+<meta name="twitter:image" content="https://botnet2.netlify.app/assets/og-image.png">
+
+<!-- Structured Data (JSON-LD) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Friend Requests & Create Bot — Botnev",
+  "url": "https://botnet2.netlify.app/create-bot.html",
+  "description": "Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Botnev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://botnet2.netlify.app/assets/logo.png"
+    }
+  }
+}
+</script>
+
 <style>
   body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
   h1 { color:#333; }
@@ -29,7 +65,6 @@
 </style>
 </head>
 <body>
-
 <div class="profile-header" id="profile"></div>
 
 <h1>🤖 Create Your Bot</h1>
@@ -258,3 +293,4 @@ loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
+
