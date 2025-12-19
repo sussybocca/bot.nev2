@@ -22,10 +22,19 @@
   <button id="loginBtn">Login</button>
   <button id="googleBtn">Login with Google</button>
 
+  <!-- Verification code section (hidden initially) -->
+  <div id="verifySection" style="display:none;">
+    <p>We sent a verification code to your email. Enter it below:</p>
+    <input type="text" id="verificationCode" placeholder="Verification code" /><br>
+    <button id="verifyBtn">Verify & Continue</button>
+  </div>
+
   <div id="output"></div>
 
 <script>
 const output = document.getElementById('output');
+const verifySection = document.getElementById('verifySection');
+let pendingLoginData = null;
 
 // Normal email/password login
 document.getElementById('loginBtn').addEventListener('click', async () => {
@@ -33,7 +42,6 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
   const password = document.getElementById('password').value.trim();
   const remember_me = document.getElementById('rememberMe').checked;
 
-  // Get hCaptcha token
   const captcha_token = hcaptcha.getResponse();
   if (!captcha_token) {
     output.textContent = "Please complete the CAPTCHA.";
@@ -45,7 +53,6 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     return;
   }
 
-  // Device fingerprint for backend verification
   const fingerprintData = navigator.userAgent + navigator.language + screen.width + screen.height;
 
   try {
@@ -57,7 +64,11 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
     const data = await res.json();
 
-    if (data.success) {
+    if (data.verification_required) {
+      output.textContent = data.message || "Verification code sent to email.";
+      pendingLoginData = { email, password, remember_me, captcha_token, fingerprint: fingerprintData };
+      verifySection.style.display = 'block';
+    } else if (data.success) {
       output.textContent = data.message || "Login successful!";
       setTimeout(() => {
         window.location.href = '/profile.html?email=' + encodeURIComponent(email);
@@ -66,6 +77,40 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       window.location.href = data.redirect;
     } else {
       output.textContent = `Error: ${data.error || 'Unknown error'}`;
+    }
+
+  } catch (err) {
+    console.error(err);
+    output.textContent = 'Error: Could not reach login server';
+  }
+});
+
+// Verify code button
+document.getElementById('verifyBtn').addEventListener('click', async () => {
+  if (!pendingLoginData) return;
+  const verification_code = document.getElementById('verificationCode').value.trim();
+  if (!verification_code) {
+    output.textContent = "Enter the verification code.";
+    return;
+  }
+
+  const loginDataWithCode = { ...pendingLoginData, verification_code };
+
+  try {
+    const res = await fetch('/.netlify/functions/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(loginDataWithCode)
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      output.textContent = data.message || "Verification successful, login complete!";
+      setTimeout(() => {
+        window.location.href = '/profile.html?email=' + encodeURIComponent(pendingLoginData.email);
+      }, 500);
+    } else {
+      output.textContent = `Error: ${data.error || 'Verification failed'}`;
     }
 
   } catch (err) {
