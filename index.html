@@ -88,24 +88,14 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // -----------------------
-// GET SESSION TOKEN FROM COOKIE
-// -----------------------
-async function getSessionToken() {
-  return document.cookie.split('; ').find(c => c.trim().startsWith('session_token='))?.split('=')[1] || null;
-}
-
-// -----------------------
 // LOAD USER PROFILE
 // -----------------------
 async function loadProfile() {
   try {
-    const token = await getSessionToken();
-    if (!token) throw new Error('No session token');
-
     const res = await fetch('/.netlify/functions/profileCreation', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ session_token: token })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // send HttpOnly cookie automatically
     });
     const result = await res.json();
     if (!result.success) throw new Error(result.error || 'Failed to fetch user');
@@ -121,9 +111,7 @@ async function loadProfile() {
       <img src="${avatarUrl}" alt="Profile" />
       <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
     `;
-
     document.getElementById('chatUsername').textContent = user.username || user.email;
-
   } catch(e) {
     console.error('Failed to load profile', e);
   }
@@ -134,11 +122,11 @@ async function loadProfile() {
 // -----------------------
 async function loadIncoming() {
   try {
-    const token = await getSessionToken();
     const res = await fetch('/.netlify/functions/friend-requests', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ action:'list', user_email: window.userEmail, session_token: token })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // send cookie
+      body: JSON.stringify({ action:'list', user_email: window.userEmail })
     });
     const data = await res.json();
     const container = document.getElementById('incomingRequests');
@@ -154,11 +142,11 @@ async function loadIncoming() {
 }
 
 window.respond = async (id,status) => {
-  const token = await getSessionToken();
-  const res = await fetch('/.netlify/functions/friend-requests',{
-    method:'POST',
+  const res = await fetch('/.netlify/functions/friend-requests', {
+    method: 'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'respond', request_id:id, status, session_token: token })
+    credentials: 'include',
+    body: JSON.stringify({ action:'respond', request_id:id, status })
   });
   const data = await res.json();
   alert(data.success ? `Request ${status}` : data.error);
@@ -166,12 +154,12 @@ window.respond = async (id,status) => {
 }
 
 document.getElementById('sendRequestBtn').addEventListener('click', async () => {
-  const token = await getSessionToken();
   const receiver_email = document.getElementById('friendEmail').value;
-  const res = await fetch('/.netlify/functions/friend-requests',{
+  const res = await fetch('/.netlify/functions/friend-requests', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email, session_token: token })
+    credentials: 'include',
+    body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email })
   });
   const data = await res.json();
   alert(data.success ? 'Request sent!' : data.error);
@@ -188,11 +176,10 @@ const fbxSelect = document.getElementById('fbxSelect');
 
 async function loadVoices() {
   try {
-    const token = await getSessionToken();
     const res = await fetch('/.netlify/functions/get-voices', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session_token: token })
+      credentials: 'include'
     });
     const voices = await res.json();
     voiceSelect.innerHTML = '<option value="">Select Voice</option>';
@@ -221,7 +208,6 @@ fbxModels.forEach(m => {
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
-  const token = await getSessionToken();
   const name = document.getElementById('botName').value.trim();
   const description = document.getElementById('description').value.trim();
   const voice_id = voiceSelect.value;
@@ -237,11 +223,12 @@ form.addEventListener('submit', async e => {
   output.textContent='Creating bot...'; 
   output.className='output';
 
-  try{
-    const res = await fetch('/.netlify/functions/overpoweredbot',{
+  try {
+    const res = await fetch('/.netlify/functions/overpoweredbot', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link, session_token: token })
+      credentials: 'include',
+      body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
     });
     const data = await res.json();
     if(!res.ok || data.error){ 
