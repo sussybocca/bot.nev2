@@ -5,6 +5,10 @@
   <title>Login</title>
   <!-- hCaptcha script -->
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  <style>
+    #verifySection { display: none; margin-top: 1em; }
+    #output { margin-top: 1em; color: red; }
+  </style>
 </head>
 <body>
   <h1>Login</h1>
@@ -18,12 +22,11 @@
   <!-- hCaptcha widget -->
   <div class="h-captcha" data-sitekey="2b1cc900-c846-40e8-bf32-dbeeeec2d1c0"></div><br>
 
-  <!-- Login & Google buttons -->
   <button id="loginBtn">Login</button>
   <button id="googleBtn">Login with Google</button>
 
-  <!-- Verification code section (hidden initially) -->
-  <div id="verifySection" style="display:none;">
+  <!-- Verification code section -->
+  <div id="verifySection">
     <p>We sent a verification code to your email. Enter it below:</p>
     <input type="text" id="verificationCode" placeholder="Verification code" /><br>
     <button id="verifyBtn">Verify & Continue</button>
@@ -36,7 +39,12 @@ const output = document.getElementById('output');
 const verifySection = document.getElementById('verifySection');
 let pendingLoginData = null;
 
-// Normal email/password login
+// Generate fingerprint
+function getFingerprint() {
+  return navigator.userAgent + navigator.language + screen.width + screen.height;
+}
+
+// Login button click
 document.getElementById('loginBtn').addEventListener('click', async () => {
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -47,79 +55,74 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     output.textContent = "Please complete the CAPTCHA.";
     return;
   }
-
   if (!email || !password) {
     output.textContent = "Please enter both email and password.";
     return;
   }
 
-  const fingerprintData = navigator.userAgent + navigator.language + screen.width + screen.height;
+  const fingerprint = getFingerprint();
 
   try {
     const res = await fetch('/.netlify/functions/login', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ email, password, remember_me, captcha_token, fingerprint: fingerprintData })
+      body: JSON.stringify({ email, password, remember_me, captcha_token, fingerprint })
     });
 
     const data = await res.json();
 
     if (data.verification_required) {
       output.textContent = data.message || "Verification code sent to email.";
-      pendingLoginData = { email, password, remember_me, captcha_token, fingerprint: fingerprintData };
+      pendingLoginData = { email, password, remember_me, fingerprint };
       verifySection.style.display = 'block';
     } else if (data.success) {
       output.textContent = data.message || "Login successful!";
-      setTimeout(() => {
-        window.location.href = '/profile.html?email=' + encodeURIComponent(email);
-      }, 500);
+      setTimeout(() => { window.location.href = '/profile.html?email=' + encodeURIComponent(email); }, 500);
     } else if (data.redirect) {
       window.location.href = data.redirect;
     } else {
       output.textContent = `Error: ${data.error || 'Unknown error'}`;
     }
-
   } catch (err) {
     console.error(err);
     output.textContent = 'Error: Could not reach login server';
   }
 });
 
-// Verify code button
+// Verification button click
 document.getElementById('verifyBtn').addEventListener('click', async () => {
   if (!pendingLoginData) return;
+
   const verification_code = document.getElementById('verificationCode').value.trim();
   if (!verification_code) {
     output.textContent = "Enter the verification code.";
     return;
   }
 
-  const loginDataWithCode = { ...pendingLoginData, verification_code };
+  const loginData = { ...pendingLoginData, verification_code };
 
   try {
     const res = await fetch('/.netlify/functions/login', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(loginDataWithCode)
+      body: JSON.stringify(loginData)
     });
 
     const data = await res.json();
+
     if (data.success) {
       output.textContent = data.message || "Verification successful, login complete!";
-      setTimeout(() => {
-        window.location.href = '/profile.html?email=' + encodeURIComponent(pendingLoginData.email);
-      }, 500);
+      setTimeout(() => { window.location.href = '/profile.html?email=' + encodeURIComponent(pendingLoginData.email); }, 500);
     } else {
       output.textContent = `Error: ${data.error || 'Verification failed'}`;
     }
-
   } catch (err) {
     console.error(err);
     output.textContent = 'Error: Could not reach login server';
   }
 });
 
-// Google login button
+// Google login
 document.getElementById('googleBtn').addEventListener('click', async () => {
   try {
     const res = await fetch('/.netlify/functions/login', {
@@ -128,11 +131,8 @@ document.getElementById('googleBtn').addEventListener('click', async () => {
       body: JSON.stringify({ google: true })
     });
     const data = await res.json();
-    if (data.redirect) {
-      window.location.href = data.redirect;
-    } else {
-      output.textContent = "Google login failed.";
-    }
+    if (data.redirect) window.location.href = data.redirect;
+    else output.textContent = "Google login failed.";
   } catch (err) {
     console.error(err);
     output.textContent = 'Error: Could not reach login server';
