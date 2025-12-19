@@ -6,6 +6,12 @@ import crypto from 'crypto';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+// -------- CONFIG -----------
+const LIMIT = 100;
+const TEST_EMAIL = "test-email@test.test.com";
+const TEST_PASSWORD = "test";
+// ----------------------------
+
 // Password validation
 function validatePassword(password) {
   if (password.length < 30) return false;
@@ -52,6 +58,29 @@ export const handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email and password required.' }) };
     }
 
+    // ---------------------------
+    // CHECK USER LIMIT
+    // ---------------------------
+    const { count, error: countError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    const underLimit = count < LIMIT;
+    const isTestAccount = email === TEST_EMAIL && password === TEST_PASSWORD;
+
+    if (!underLimit && !isTestAccount) {
+      await randomDelay();
+      return { 
+        statusCode: 403, 
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Signup limit reached. Only the test account is allowed.' 
+        }) 
+      };
+    }
+
     // Optional: CAPTCHA verification for high-risk signups
     if (captcha_token) {
       const secret = process.env.CAPTCHA_SECRET_KEY;
@@ -80,12 +109,12 @@ export const handler = async (event) => {
     }
 
     // Validate password
-    if (!validatePassword(password)) {
+    if (!validatePassword(password) && !isTestAccount) {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Password does not meet requirements.' }) };
     }
 
     // Hash password
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = isTestAccount ? password : await bcrypt.hash(password, 10);
 
     // Generate encrypted verification token
     const verificationCode = generateEncryptedToken();
@@ -98,33 +127,35 @@ export const handler = async (event) => {
         email,
         username: finalUsername,
         password: hashed,
-        verified: false,
+        verified: isTestAccount, // auto-verified for test account
         verification_code: verificationCode,
         last_fingerprint: fingerprint,
-        is_honeytoken: false // set true if creating dummy account
+        is_honeytoken: false
       });
 
     if (insertError) throw insertError;
 
-    // Send verification email
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn("EMAIL_USER or EMAIL_PASS missing. Verification code logged:");
-      console.log(`Verification code for ${email}: ${verificationCode}`);
-    } else {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-      });
+    // Send verification email (skip for test account)
+    if (!isTestAccount) {
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.warn("EMAIL_USER or EMAIL_PASS missing. Verification code logged:");
+        console.log(`Verification code for ${email}: ${verificationCode}`);
+      } else {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+        });
 
-      await transporter.sendMail({
-        from: `"Botnev Team" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: "Your Botnev Verification Code",
-        text: `Hello ${finalUsername},\n\nYour verification code is: ${verificationCode}\nUse this code to verify your account.`
-      });
+        await transporter.sendMail({
+          from: `"Botnev Team" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Your Botnev Verification Code",
+          text: `Hello ${finalUsername},\n\nYour verification code is: ${verificationCode}\nUse this code to verify your account.`
+        });
+      }
     }
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Signup successful! Verification code sent.' }) };
+    return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Signup successful!' }) };
 
   } catch (err) {
     console.error(err);
