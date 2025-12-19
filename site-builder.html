@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Botnet2 Site Builder</title>
+  <title>Fire-USA Site Builder</title>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.0/dist/jszip.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #111; color: white; padding: 20px; }
@@ -12,11 +12,12 @@
 </head>
 <body>
 
-<h1>Botnet2 Site Builder</h1>
+<h1>Fire-USA Site Builder</h1>
 <p>Your site will live at: <strong>https://&lt;site-name&gt;.fire-usa.com</strong></p>
 
 <input type="text" id="siteName" placeholder="Enter site name (letters, numbers, -)" />
 <input type="file" id="zipFile" accept=".zip" />
+<input type="text" id="githubToken" placeholder="Enter your GitHub OAuth token" />
 <button id="createSiteBtn">Create Site</button>
 
 <iframe id="previewFrame"></iframe>
@@ -24,15 +25,17 @@
 <script type="module">
   const zipInput = document.getElementById('zipFile');
   const siteNameInput = document.getElementById('siteName');
+  const githubTokenInput = document.getElementById('githubToken');
   const createBtn = document.getElementById('createSiteBtn');
   const previewFrame = document.getElementById('previewFrame');
 
   createBtn.addEventListener('click', async () => {
     const siteName = siteNameInput.value.trim();
     const file = zipInput.files[0];
+    const githubToken = githubTokenInput.value.trim();
 
-    if (!siteName || !file) {
-      alert('Please provide site name and ZIP file.');
+    if (!siteName || !file || !githubToken) {
+      alert('Please provide site name, ZIP file, and GitHub OAuth token.');
       return;
     }
 
@@ -42,12 +45,11 @@
     }
 
     try {
-      // 1️⃣ Extract ZIP contents
+      // Extract ZIP contents
       const jszip = new JSZip();
       const zipData = await jszip.loadAsync(file);
       const files = {};
 
-      // Convert each file in the ZIP to text
       await Promise.all(Object.keys(zipData.files).map(async (filename) => {
         if (!zipData.files[filename].dir) {
           const content = await zipData.files[filename].async('text');
@@ -55,26 +57,26 @@
         }
       }));
 
-      // 2️⃣ Send JSON to create-site function
+      // Send JSON to create-site function
       const response = await fetch('/.netlify/functions/create-site', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: null, // <-- allow null if no user exists
           site_name: siteName,
-          files
+          files,
+          github_token: githubToken
         })
       });
 
       const data = await response.json();
+
       if (!data.success) {
         alert(data.error || 'Failed to create site');
         return;
       }
 
-      // 3️⃣ Preview the site
-      alert(`Site created! Visit: ${data.url}`);
-      previewFrame.src = data.url;
+      alert(`Site created! GitHub repo: ${data.githubUrl}`);
+      previewFrame.src = `https://${siteName}.fire-usa.com`;
 
     } catch (err) {
       console.error('Error creating site:', err);
