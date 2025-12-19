@@ -8,6 +8,10 @@
 <title>Friend Requests & Create Bot — Botnev</title>
 <meta name="description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
 
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="https://botnet2.netlify.app/assets/logo.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://botnet2.netlify.app/assets/logo.png">
+
 <!-- Open Graph (for social media sharing) -->
 <meta property="og:title" content="Friend Requests & Create Bot — Botnev">
 <meta property="og:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
@@ -62,31 +66,19 @@
   #chatBubble { position: fixed; bottom: 20px; right: 20px; width: 64px; height: 64px; border-radius: 50%; background: #007bff; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 9999; }
   #chatBubble span { font-size: 10px; margin-top: 2px; max-width: 55px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #chatBadge { position: absolute; top: 6px; right: 6px; background: red; color: white; font-size: 10px; padding: 2px 6px; border-radius: 50%; display: none; }
-  #siteLogo {
-  text-align: center;
-  margin-bottom: 15px;
-}
-
-#siteLogo img {
-  max-width: 150px;
-  height: auto;
-  cursor: pointer; /* shows it’s clickable */
-  transition: transform 0.2s;
-}
-
-#siteLogo img:hover {
-  transform: scale(1.05); /* slight zoom on hover */
-}
-
+  #siteLogo { text-align: center; margin-bottom: 15px; }
+  #siteLogo img { max-width: 150px; height: auto; cursor: pointer; transition: transform 0.2s; }
+  #siteLogo img:hover { transform: scale(1.05); }
 </style>
 </head>
 <body>
-  <!-- Top Logo -->
-  <header id="siteHeader">
-    <a href="/index.html">
-      <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" />
-    </a>
-  </header>
+
+<!-- Top Logo -->
+<header id="siteHeader">
+  <a href="/index.html">
+    <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" />
+  </a>
+</header>
 
 <div class="profile-header" id="profile"></div>
 
@@ -139,13 +131,6 @@
 
 <script>
 // -----------------------
-// SHOW TEST ACCOUNT ALERT
-// -----------------------
-window.addEventListener('DOMContentLoaded', () => {
- 
-});
-
-// -----------------------
 // LOAD USER PROFILE
 // -----------------------
 async function loadProfile() {
@@ -153,14 +138,13 @@ async function loadProfile() {
     const res = await fetch('/.netlify/functions/profileCreation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // send HttpOnly cookie automatically
+      credentials: 'include'
     });
     const result = await res.json();
     if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
     const user = result.user;
     window.userEmail = user.email;
-
     const lastActive = new Date(user.last_online);
     const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
     const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
@@ -170,9 +154,7 @@ async function loadProfile() {
       <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
     `;
     document.getElementById('chatUsername').textContent = user.username || user.email;
-  } catch(e) {
-    console.error('Failed to load profile', e);
-  }
+  } catch(e) { console.error('Failed to load profile', e); }
 }
 
 // -----------------------
@@ -183,7 +165,7 @@ async function loadIncoming() {
     const res = await fetch('/.netlify/functions/friend-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // send cookie
+      credentials: 'include',
       body: JSON.stringify({ action:'list', user_email: window.userEmail })
     });
     const data = await res.json();
@@ -247,10 +229,7 @@ async function loadVoices() {
       opt.textContent = `${v.name} (${v.lang})`;
       voiceSelect.appendChild(opt);
     });
-  } catch(err) {
-    voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
-    console.error(err);
-  }
+  } catch(err) { voiceSelect.innerHTML = '<option value="">Failed to load voices</option>'; console.error(err); }
 }
 
 const fbxModels = [
@@ -298,10 +277,7 @@ form.addEventListener('submit', async e => {
       <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
     output.className='output success'; 
     form.reset();
-  } catch(err){
-    output.textContent='Failed to create bot.'; 
-    output.className='output error';
-  }
+  } catch(err){ output.textContent='Failed to create bot.'; output.className='output error'; }
 });
 
 // -----------------------
@@ -314,9 +290,6 @@ function openChat() { window.location.href = '/chat.html'; }
 // -----------------------
 loadProfile().then(loadIncoming).then(loadVoices);
 </script>
+
 </body>
 </html>
-
-
-
-
