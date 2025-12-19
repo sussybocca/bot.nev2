@@ -29,9 +29,11 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
     }
 
-    // Use the login cookie from your login page
+    // -----------------------------
+    // Read the correct login cookie
+    // -----------------------------
     const cookies = cookie.parse(event.headers.cookie || '');
-    const session_token = cookies['__Host-login_token']; // <- your login cookie
+    const session_token = cookies['__Host-session_secure']; // <- updated cookie name
 
     if (!session_token) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
