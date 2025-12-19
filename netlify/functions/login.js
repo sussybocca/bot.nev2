@@ -161,7 +161,7 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        'Set-Cookie': `session_token=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays*24*60*60}; SameSite=Strict`,
+       'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays*24*60*60}; SameSite=Strict`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ success: true, message: 'Verification complete. Login successful!' })
