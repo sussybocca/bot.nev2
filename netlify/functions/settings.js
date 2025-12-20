@@ -28,7 +28,6 @@ async function isValidImageUrl(url) {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) return false;
 
-    // Ping the URL to confirm it's reachable and an image
     const res = await fetch(url, { method: 'HEAD' });
     const contentType = res.headers.get('content-type') || '';
     return res.ok && contentType.startsWith('image/');
@@ -47,8 +46,6 @@ export const handler = async (event) => {
     const userUUID = decryptSessionToken(sessionToken);
     if (!userUUID) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid session token' }) };
 
-    const { avatar_url, online } = JSON.parse(event.body || '{}');
-
     // Validate session exists and is not expired
     const { data: session } = await supabase.from('sessions')
       .select('user_email, expires_at')
@@ -59,19 +56,30 @@ export const handler = async (event) => {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Session expired or invalid' }) };
     }
 
-    const updates = {};
+    // Fetch current user data
+    const { data: user, error: userError } = await supabase.from('users')
+      .select('email, username, avatar_url, online')
+      .eq('email', session.user_email)
+      .maybeSingle();
 
-    // Online/offline tracking
-    if (typeof online === 'boolean') updates.online = online;
-
-    // Avatar URL update
-    if (avatar_url) {
-      if (!(await isValidImageUrl(avatar_url))) {
-        return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid or unreachable avatar URL' }) };
-      }
-      updates.avatar_url = avatar_url;
+    if (userError) {
+      return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Failed to fetch user', details: userError.message }) };
     }
 
+    // Parse body for updates
+    let body = {};
+    try { body = JSON.parse(event.body || '{}'); } catch(e){}
+
+    const updates = {};
+    if (typeof body.online === 'boolean') updates.online = body.online;
+    if (body.avatar_url) {
+      if (!(await isValidImageUrl(body.avatar_url))) {
+        return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Invalid or unreachable avatar URL' }) };
+      }
+      updates.avatar_url = body.avatar_url;
+    }
+
+    // Apply updates if any
     if (Object.keys(updates).length > 0) {
       const { error } = await supabase.from('users')
         .update(updates)
@@ -80,18 +88,24 @@ export const handler = async (event) => {
       if (error) return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Failed to update user', details: error.message }) };
     }
 
+    // Return current settings after any updates
+    const responseUser = { 
+      email: user.email,
+      username: user.username,
+      avatar_url: updates.avatar_url ?? user.avatar_url,
+      online: updates.online ?? user.online
+    };
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        message: 'User status updated successfully',
-        avatar_url: updates.avatar_url || null,
-        online: updates.online ?? null
+        user: responseUser
       })
     };
 
   } catch (err) {
-    console.error('STATUS FUNCTION ERROR:', err);
+    console.error('SETTINGS FUNCTION ERROR:', err);
     return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error', details: err.message }) };
   }
 };
