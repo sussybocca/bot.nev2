@@ -54,11 +54,12 @@ export const handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const { step, email, verification_code, frontendFingerprint, username, bio, profile_picture, fbx_avatar_ids, online_status, new_password, current_password } = body;
 
-    // 1️⃣ Check for existing session cookie
+    // Parse existing cookies
     const cookies = cookie.parse(event.headers.cookie || '');
     let user_email = null;
-    if (cookies['__Host-session_secure']) {
-      const sessionToken = cookies['__Host-session_secure'];
+
+    if (cookies['session_secure']) {
+      const sessionToken = cookies['session_secure'];
       const { data: session } = await supabase.from('sessions')
         .select('user_email, expires_at')
         .eq('session_token', sessionToken)
@@ -69,7 +70,7 @@ export const handler = async (event) => {
       }
     }
 
-    // 2️⃣ Step 0: email verification if no session
+    // Step 0: Email verification if no session
     if (!user_email) {
       if (!email) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email is required' }) };
 
@@ -119,14 +120,14 @@ export const handler = async (event) => {
       return {
         statusCode: 200,
         headers: {
-          'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${90*24*60*60}; SameSite=Strict`,
+          'Set-Cookie': `session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${90*24*60*60}; SameSite=Strict; Domain=fire-usa.com`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ success:true, message:'Device verified. Secure session created!', user:{...user,password:undefined} })
       };
     }
 
-    // 3️⃣ Step 1+: Profile updates
+    // Step 1+: Profile updates
     let { data: user } = await supabase.from('users').select('*').eq('email', user_email).maybeSingle();
     if (!user) return { statusCode: 404, body: JSON.stringify({ success:false, error:'User not found' }) };
 
