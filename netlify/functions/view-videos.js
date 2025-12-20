@@ -13,33 +13,48 @@ export const handler = async () => {
       .from('videos')
       .list('', { limit: 100, offset: 0, sortBy: { column: 'created_at', order: 'desc' } });
 
-    if (listError) {
-      return { statusCode: 500, body: listError.message };
-    }
+    if (listError) return { statusCode: 500, body: listError.message };
+    if (!files || files.length === 0) return { statusCode: 200, body: JSON.stringify([]) };
 
-    // Create signed URLs for each video
-    const videosWithUrls = await Promise.all(
+    const videosWithUser = await Promise.all(
       files.map(async (file) => {
+        // Create signed URL
         const { data: signedUrlData, error: signedUrlError } = await supabase
           .storage
           .from('videos')
-          .createSignedUrl(file.name, 3600); // 1 hour expiry
+          .createSignedUrl(file.name, 3600); // 1 hour
 
         if (signedUrlError) return null;
+
+        // Get video metadata from videos table
+        const { data: videoRecord } = await supabase
+          .from('videos')
+          .select('user_id')
+          .eq('video_url', file.name)
+          .maybeSingle();
+
+        if (!videoRecord) return null;
+
+        // Fetch user info
+        const { data: user } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('id', videoRecord.user_id)
+          .maybeSingle();
+
         return {
           name: file.name,
           size: file.size,
           updated_at: file.updated_at,
-          videoUrl: signedUrlData.signedUrl
+          videoUrl: signedUrlData.signedUrl,
+          user: user ? { id: user.id, email: user.email } : null
         };
       })
     );
 
-    const filteredVideos = videosWithUrls.filter(v => v); // remove any nulls
-
     return {
       statusCode: 200,
-      body: JSON.stringify(filteredVideos)
+      body: JSON.stringify(videosWithUser.filter(v => v))
     };
   } catch (err) {
     return { statusCode: 500, body: err.message };
