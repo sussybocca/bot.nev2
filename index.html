@@ -208,7 +208,7 @@ async function loadProfile() {
     const res = await fetch('/.netlify/functions/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // send HttpOnly cookie automatically
+      credentials: 'include'
     });
 
     const result = await res.json();
@@ -217,8 +217,7 @@ async function loadProfile() {
     const user = result.user || {};
     window.userEmail = user.email;
 
-    const lastActive = new Date(user.last_online || Date.now());
-    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? true : false;
+    const online = !!user.online; // use online directly from backend
     const avatarUrl = user.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email || 'user')}.svg`;
 
     // Display profile + settings UI
@@ -248,7 +247,7 @@ async function loadProfile() {
 
     document.getElementById('chatUsername').textContent = user.username || user.email || 'Chat';
 
-    // Event listeners for updating settings
+    // Event listeners for updating settings remain unchanged
     document.getElementById('updateAvatarBtn').addEventListener('click', async () => {
       const newAvatar = document.getElementById('avatarInput').value.trim();
       if (!newAvatar) return alert('Please enter a valid URL');
@@ -443,6 +442,7 @@ loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
+
 
 
 
