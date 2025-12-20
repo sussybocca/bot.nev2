@@ -3,140 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <title>Email System</title>
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" sizes="32x32" href="https://botnet2.netlify.app/assets/logo.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://botnet2.netlify.app/assets/logo.png">
-
   <style>
-    body {
-      background-color: #0f0f0f;
-      color: #00ff00;
-      font-family: 'Courier New', monospace;
-      margin: 0;
-      padding: 0;
-    }
-
-    /* Header with logo */
-    #siteHeader {
-      background-color: #111;
-      padding: 20px;
-      text-align: center;
-      border-bottom: 2px solid #00ff00;
-    }
-
-    #topLogo {
-      max-height: 80px;
-      cursor: pointer;
-    }
-
-    main {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      max-width: 700px;
-      margin: auto;
-    }
-
-    label {
-      display: block;
-      margin: 10px 0 5px;
-      font-weight: bold;
-    }
-
-    select, input, textarea {
-      width: 100%;
-      padding: 8px;
-      background-color: #111;
-      border: 1px solid #00ff00;
-      color: #00ff00;
-      font-family: monospace;
-    }
-
-    textarea {
-      height: 150px;
-      resize: vertical;
-    }
-
-    button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      background-color: #ff0000;
-      color: #000;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      transition: 0.2s;
-    }
-
-    button:hover {
-      background-color: #aa0000;
-    }
-
-    #output {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #00ff00;
-      min-height: 20px;
-      white-space: pre-wrap;
-    }
-
-    #inbox {
-      margin-top: 30px;
-    }
-
-    .email {
-      border: 1px solid #00ff00;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-
-    .email strong {
-      display: inline-block;
-      width: 80px;
-    }
-
-    /* Avatar preview next to select */
-    #avatarPreview {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      margin-top: 5px;
-    }
+    body { background-color: #0f0f0f; color: #00ff00; font-family: 'Courier New', monospace; margin: 0; padding: 0; }
+    #siteHeader { background-color: #111; padding: 20px; text-align: center; border-bottom: 2px solid #00ff00; }
+    #topLogo { max-height: 80px; cursor: pointer; }
+    main { padding: 20px; display: flex; flex-direction: column; max-width: 700px; margin: auto; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    select, input, textarea { width: 100%; padding: 8px; background-color: #111; border: 1px solid #00ff00; color: #00ff00; font-family: monospace; }
+    textarea { height: 150px; resize: vertical; }
+    button { margin-top: 15px; padding: 10px 20px; background-color: #ff0000; color: #000; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    button:hover { background-color: #aa0000; }
+    #output { margin-top: 20px; padding: 10px; border: 1px solid #00ff00; min-height: 20px; white-space: pre-wrap; }
+    #inbox { margin-top: 30px; }
+    .email { border: 1px solid #00ff00; padding: 10px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 10px; }
+    .email img { width: 32px; height: 32px; border-radius: 50%; }
+    .email-content { flex: 1; }
+    .email strong { display: inline-block; width: 80px; }
+    #avatarPreview { width: 32px; height: 32px; border-radius: 50%; margin-top: 5px; }
   </style>
 </head>
 <body>
 
-  <!-- Top Logo -->
-  <header id="siteHeader">
-    <a href="/index.html">
-      <img
-        src="https://botnet2.netlify.app/assets/logo.png"
-        alt="Botnev Logo"
-        id="topLogo"
-      />
-    </a>
-  </header>
+<header id="siteHeader">
+  <a href="/index.html"><img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" /></a>
+</header>
 
-  <main>
-    <label for="toUser">Send To:</label>
-    <select id="toUser">
-      <option value="">Loading users...</option>
-    </select>
-    <img id="avatarPreview" src="" alt="Avatar Preview" />
+<main>
+  <label for="toUser">Send To:</label>
+  <select id="toUser"><option value="">Loading users...</option></select>
+  <img id="avatarPreview" src="" alt="Avatar Preview" />
 
-    <label for="subject">Subject:</label>
-    <input type="text" id="subject" maxlength="200">
+  <label for="subject">Subject:</label>
+  <input type="text" id="subject" maxlength="200">
 
-    <label for="body">Body:</label>
-    <textarea id="body" maxlength="2000"></textarea>
+  <label for="body">Body:</label>
+  <textarea id="body" maxlength="2000"></textarea>
 
-    <button id="sendBtn">Send Email</button>
-    <div id="output"></div>
+  <button id="sendBtn">Send Email</button>
+  <div id="output"></div>
 
-    <h2>Inbox</h2>
-    <div id="inbox">Loading emails...</div>
-  </main>
+  <h2>Inbox</h2>
+  <div id="inbox">Loading emails...</div>
+</main>
 
 <script>
 const toUserSelect = document.getElementById('toUser');
@@ -147,20 +57,15 @@ const sendBtn = document.getElementById('sendBtn');
 const output = document.getElementById('output');
 const inboxDiv = document.getElementById('inbox');
 
-// Sanitize input
 function sanitize(str) {
   if (!str) return '';
   return str.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;');
 }
 
-// Load verified users with online status & avatar
+// Load users for sending emails
 async function loadUsers() {
   try {
-    const res = await fetch('/.netlify/functions/getVerifiedUsers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
+    const res = await fetch('/.netlify/functions/getVerifiedUsers', { method: 'POST', credentials: 'include' });
     const data = await res.json();
     if (!data.success) throw new Error('Failed to load users');
 
@@ -180,39 +85,34 @@ async function loadUsers() {
   }
 }
 
-// Show avatar when a user is selected
+// Show avatar next to select
 toUserSelect.addEventListener('change', () => {
   const selected = toUserSelect.selectedOptions[0];
   avatarPreview.src = selected?.dataset.avatar || '';
 });
 
-// Load inbox
+// Load inbox with sender info
 async function loadInbox() {
   try {
-    const res = await fetch('/.netlify/functions/getEmails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
+    const res = await fetch('/.netlify/functions/getEmails', { method: 'POST', credentials: 'include' });
     const data = await res.json();
-    if (!data.success) {
-      inboxDiv.textContent = 'Failed to load inbox';
-      return;
-    }
-    if (!data.emails.length) {
-      inboxDiv.textContent = 'No emails';
-      return;
-    }
+    if (!data.success) { inboxDiv.textContent = 'Failed to load inbox'; return; }
+    if (!data.emails.length) { inboxDiv.textContent = 'No emails'; return; }
 
     inboxDiv.innerHTML = '';
     data.emails.forEach(e => {
       const div = document.createElement('div');
       div.className = 'email';
+      const sender = e.from || {};
+      const statusEmoji = sender.online ? '🟢' : '⚪';
       div.innerHTML = `
-        <div><strong>From:</strong> ${sanitize(e.from_user)}</div>
-        <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
-        <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
-        <div>${sanitize(e.body)}</div>
+        <img src="${sender.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender.username || sender.email || 'user')}.svg`}" alt="Avatar">
+        <div class="email-content">
+          <div><strong>From:</strong> ${statusEmoji} ${sanitize(sender.username || sender.email || 'Unknown')}</div>
+          <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
+          <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+          <div>${sanitize(e.body)}</div>
+        </div>
       `;
       inboxDiv.appendChild(div);
     });
@@ -227,23 +127,15 @@ sendBtn.addEventListener('click', async () => {
   const to_user = toUserSelect.value;
   const subject = subjectInput.value.trim();
   const body = bodyInput.value.trim();
-
-  if (!to_user || !body) {
-    output.textContent = 'Recipient and body required.';
-    return;
-  }
-
-  const safeSubject = sanitize(subject) || 'New message';
-  const safeBody = sanitize(body);
+  if (!to_user || !body) { output.textContent = 'Recipient and body required.'; return; }
 
   try {
     const res = await fetch('/.netlify/functions/sendEmail', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ to_user, subject: safeSubject, body: safeBody })
+      body: JSON.stringify({ to_user, subject, body })
     });
-
     const data = await res.json();
     if (data.success) {
       output.textContent = 'Email sent successfully.';
