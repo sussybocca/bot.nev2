@@ -45,52 +45,41 @@
       progressBar.style.display = 'block';
       progressBar.value = 0;
 
-      const reader = new FileReader();
-      reader.readAsArrayBuffer(file);
+      const formData = new FormData();
+      formData.append('video', file);
 
-      reader.onload = async () => {
-        const arrayBuffer = reader.result;
-        try {
-          const sessionToken = getSessionCookie();
+      try {
+        const sessionToken = getSessionCookie();
 
-          const headers = {};
-          if (sessionToken) {
-            headers['Authorization'] = 'Bearer ' + sessionToken;
-          }
-
-          // fetch with credentials so HTTP-only cookie is sent automatically
-          const response = await fetch('/.netlify/functions/upload-video', {
-            method: 'POST',
-            headers,
-            body: arrayBuffer,
-            credentials: 'same-origin'
-          });
-
-          if (!response.ok) {
-            const text = await response.text();
-            document.getElementById('result').innerText = 'Upload failed: ' + text;
-            return;
-          }
-
-          const data = await response.json();
-          document.getElementById('result').innerHTML = `
-            Upload successful! <br>
-            <a href="${data.videoUrl}" target="_blank">View Video</a>
-          `;
-        } catch (err) {
-          console.error(err);
-          document.getElementById('result').innerText = 'Upload failed: ' + err.message;
-        } finally {
-          progressBar.style.display = 'none';
+        const headers = {};
+        if (sessionToken) {
+          headers['Authorization'] = 'Bearer ' + sessionToken;
         }
-      };
 
-      reader.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = (e.loaded / e.total) * 100;
-          progressBar.value = percent;
+        const response = await fetch('/.netlify/functions/upload-video', {
+          method: 'POST',
+          body: formData,
+          headers,
+          credentials: 'same-origin' // sends HTTP-only cookies
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          document.getElementById('result').innerText = 'Upload failed: ' + text;
+          return;
         }
-      };
+
+        const data = await response.json();
+        document.getElementById('result').innerHTML = `
+          Upload successful! <br>
+          <a href="${data.videoUrl}" target="_blank">View Video</a>
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('result').innerText = 'Upload failed: ' + err.message;
+      } finally {
+        progressBar.style.display = 'none';
+      }
     });
   </script>
 </body>
