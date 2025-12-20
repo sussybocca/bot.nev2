@@ -201,34 +201,106 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // -----------------------
-// LOAD USER PROFILE
+// LOAD USER PROFILE (via settings.js) + editable settings UI
 // -----------------------
 async function loadProfile() {
   try {
-    const res = await fetch('/.netlify/functions/profileCreation', {
+    const res = await fetch('/.netlify/functions/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // send HttpOnly cookie automatically
     });
+
     const result = await res.json();
     if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
-    const user = result.user;
+    const user = result.user || {};
     window.userEmail = user.email;
 
-    const lastActive = new Date(user.last_online);
-    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
-    const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
+    const lastActive = new Date(user.last_online || Date.now());
+    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? true : false;
+    const avatarUrl = user.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email || 'user')}.svg`;
 
+    // Display profile + settings UI
     document.getElementById('profile').innerHTML = `
-      <img src="${avatarUrl}" alt="Profile" />
-      <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
+      <img id="avatarPreview" src="${avatarUrl}" alt="Profile" style="width:50px;height:50px;border-radius:50%;object-fit:cover;" />
+      <span>${user.username || user.email || 'User'} - 
+        <span id="statusIndicator" class="${online ? 'online' : 'offline'}">${online ? 'Online' : 'Offline'}</span>
+      </span>
+      <div style="margin-top:10px;">
+        <label>
+          Change Avatar URL:
+          <input type="text" id="avatarInput" placeholder="New avatar URL" style="width:200px;" />
+        </label>
+        <button id="updateAvatarBtn" style="margin-left:5px;">Update Avatar</button>
+      </div>
+      <div style="margin-top:5px;">
+        <label>
+          Online Status:
+          <select id="statusSelect">
+            <option value="true" ${online ? 'selected' : ''}>Online</option>
+            <option value="false" ${!online ? 'selected' : ''}>Offline</option>
+          </select>
+        </label>
+        <button id="updateStatusBtn" style="margin-left:5px;">Update Status</button>
+      </div>
     `;
-    document.getElementById('chatUsername').textContent = user.username || user.email;
-  } catch(e) {
+
+    document.getElementById('chatUsername').textContent = user.username || user.email || 'Chat';
+
+    // Event listeners for updating settings
+    document.getElementById('updateAvatarBtn').addEventListener('click', async () => {
+      const newAvatar = document.getElementById('avatarInput').value.trim();
+      if (!newAvatar) return alert('Please enter a valid URL');
+      try {
+        const res = await fetch('/.netlify/functions/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ avatar_url: newAvatar })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('avatarPreview').src = newAvatar;
+          alert('Avatar updated successfully!');
+        } else {
+          alert('Failed to update avatar: ' + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error updating avatar');
+      }
+    });
+
+    document.getElementById('updateStatusBtn').addEventListener('click', async () => {
+      const newStatus = document.getElementById('statusSelect').value === 'true';
+      try {
+        const res = await fetch('/.netlify/functions/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ online: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const statusEl = document.getElementById('statusIndicator');
+          statusEl.textContent = newStatus ? 'Online' : 'Offline';
+          statusEl.className = newStatus ? 'online' : 'offline';
+          alert('Status updated successfully!');
+        } else {
+          alert('Failed to update status: ' + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error updating status');
+      }
+    });
+
+  } catch (e) {
     console.error('Failed to load profile', e);
   }
 }
+
 
 // -----------------------
 // FRIEND REQUESTS
@@ -371,5 +443,6 @@ loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
+
 
 
