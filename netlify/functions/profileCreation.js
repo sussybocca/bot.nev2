@@ -54,22 +54,22 @@ export const handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const { step, email, verification_code, frontendFingerprint, username, bio, profile_picture, fbx_avatar_ids, online_status, new_password, current_password } = body;
 
-    // 1️⃣ Check for existing session cookie
-    const cookies = cookie.parse(event.headers.cookie || '');
-    let user_email = null;
-    if (cookies['__Host-session_secure']) {
-      const sessionToken = cookies['__Host-session_secure'];
-      const { data: session } = await supabase.from('sessions')
-        .select('user_email, expires_at')
-        .eq('session_token', sessionToken)
-        .maybeSingle();
+ // 1️⃣ Check for existing session cookie
+const cookies = cookie.parse(event.headers.cookie || '');
+let user_email = null;
+if (cookies['session_secure']) {  // <- changed here
+  const sessionToken = cookies['session_secure'];
+  const { data: session } = await supabase.from('sessions')
+    .select('user_email, expires_at')
+    .eq('session_token', sessionToken)
+    .maybeSingle();
 
-      if (session && new Date(session.expires_at) > new Date()) {
-        user_email = session.user_email;
-      }
-    }
+  if (session && new Date(session.expires_at) > new Date()) {
+    user_email = session.user_email;
+  }
+}
 
-    // 2️⃣ Step 0: email verification if no session
+   // 2️⃣ Step 0: email verification if no session
     if (!user_email) {
       if (!email) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email is required' }) };
 
