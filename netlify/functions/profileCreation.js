@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import cookie from 'cookie';
 import nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,10 +9,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // Nodemailer setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
 // Generate AES-GCM encrypted token
@@ -27,7 +23,7 @@ function generateEncryptedToken() {
   return `${iv.toString('hex')}:${tag}:${encrypted}`;
 }
 
-// Send email verification code
+// Send verification email
 async function sendVerificationEmail(email, code) {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
@@ -37,13 +33,13 @@ async function sendVerificationEmail(email, code) {
   });
 }
 
-// Generate device fingerprint hash
+// Device fingerprint
 function getDeviceFingerprint(headers, frontendFingerprint) {
-  const source = frontendFingerprint || headers['user-agent'] + headers['accept-language'] + (headers['x-forwarded-for'] || '') + uuidv4();
+  const source = frontendFingerprint || (headers['user-agent'] || '') + (headers['accept-language'] || '') + (headers['x-forwarded-for'] || '');
   return crypto.createHash('sha256').update(source).digest('hex');
 }
 
-// Generate 6-digit code
+// Verification code
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -56,152 +52,107 @@ export const handler = async (event) => {
 
     const body = JSON.parse(event.body || '{}');
     const {
-      step,
-      email,
-      verification_code,
-      frontendFingerprint,
-      username,
-      bio,
-      profile_picture,
-      fbx_avatar_ids,
-      online_status,
-      new_password,
-      current_password
+      step, email, verification_code, frontendFingerprint,
+      username, bio, profile_picture, fbx_avatar_ids, online_status,
+      new_password, current_password
     } = body;
 
-    // Step 0: Email verification
+    if (!email) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email is required' }) };
+
+    // Step 0: send verification code if not provided
     if (!verification_code) {
       const code = generateVerificationCode();
       const fingerprint = getDeviceFingerprint(event.headers, frontendFingerprint);
 
       await supabase.from('pending_verifications').upsert({
-        email,
-        code,
-        fingerprint,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000) // 15 mins
+        email, code, fingerprint,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000)
       }, { onConflict: ['email', 'fingerprint'] });
 
       await sendVerificationEmail(email, code);
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, verification_required: true, message: 'Verification code sent to email.' })
-      };
+      return { statusCode: 200, body: JSON.stringify({ success: true, verification_required: true, message: 'Verification code sent to email.' }) };
     }
 
     // Verify code
     const { data: pending } = await supabase.from('pending_verifications')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
+      .select('*').eq('email', email).maybeSingle();
 
     if (!pending || pending.code !== verification_code || new Date(pending.expires_at) < new Date()) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid or expired verification code' }) };
     }
 
-    // Create secure session cookie
+    // Fetch or create user
+    let { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
+    if (!user) {
+      // Create empty user record if it doesn’t exist
+      const { data: newUser, error: createError } = await supabase.from('users').insert({ email }).select().single();
+      if (createError) throw createError;
+      user = newUser;
+    }
+
+    // Process profile steps
+    let updates = {};
+    if (step) {
+      switch(step){
+        case 1: if(!username||!bio) return { statusCode:400, body:JSON.stringify({success:false,error:'Username and bio required'})}; updates.username=username; updates.bio=bio; break;
+        case 2: if(!profile_picture) return { statusCode:400, body:JSON.stringify({success:false,error:'Profile picture required'})}; updates.profile_picture=profile_picture; break;
+        case 3: if(!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length>3) return { statusCode:400, body:JSON.stringify({success:false,error:'Select up to 3 FBX avatars'})}; updates.fbx_avatar_ids=fbx_avatar_ids; break;
+        case 4: updates.completed_profile=true; break;
+        default: if(username) updates.username=username; if(bio) updates.bio=bio; if(profile_picture) updates.profile_picture=profile_picture; if(fbx_avatar_ids) updates.fbx_avatar_ids=fbx_avatar_ids;
+      }
+
+      // Online status
+      if (online_status) {
+        if (!['online','offline'].includes(online_status)) return { statusCode:400, body:JSON.stringify({success:false,error:'Invalid online_status'}) };
+        updates.online_status=online_status;
+        updates.last_online=new Date().toISOString();
+      }
+
+      // Password change
+      if (new_password) {
+        if (!current_password) return { statusCode:400, body:JSON.stringify({success:false,error:'Current password required'}) };
+        const match = await bcrypt.compare(current_password, user.encrypted_password || user.password || '');
+        if (!match) return { statusCode:401, body:JSON.stringify({success:false,error:'Incorrect current password'}) };
+        updates.encrypted_password = await bcrypt.hash(new_password,10);
+      }
+
+      if (Object.keys(updates).length>0) {
+        const { data: updatedUser, error: updateError } = await supabase.from('users')
+          .update(updates)
+          .eq('email', email)
+          .select()
+          .single();
+        if (updateError) throw updateError;
+        user = updatedUser;
+      }
+    }
+
+    // Create session
     const session_token = generateEncryptedToken();
     const fingerprint = getDeviceFingerprint(event.headers, frontendFingerprint);
-    const expiresInDays = 90;
-
     await supabase.from('sessions').insert({
       user_email: email,
       session_token,
       fingerprint,
-      expires_at: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
+      expires_at: new Date(Date.now() + 90*24*60*60*1000),
       verified: true
     });
 
     // Delete pending verification
     await supabase.from('pending_verifications').delete().eq('email', email);
 
-    // Fetch user after verification
-    const { data: user, error: userError } = await supabase.from('users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (userError || !user) return { statusCode: 404, body: JSON.stringify({ success: false, error: 'User not found' }) };
-
-    // Profile steps (only if step provided)
-    let updates = {};
-    if (step) {
-      switch(step){
-        case 1:
-          if(!username || !bio) return { statusCode:400, body:JSON.stringify({success:false, error:'Username and bio required'})};
-          updates.username = username;
-          updates.bio = bio;
-          break;
-        case 2:
-          if(!profile_picture) return { statusCode:400, body:JSON.stringify({success:false, error:'Profile picture required'})};
-          updates.profile_picture = profile_picture;
-          break;
-        case 3:
-          if(!fbx_avatar_ids || !Array.isArray(fbx_avatar_ids) || fbx_avatar_ids.length > 3) 
-            return { statusCode:400, body:JSON.stringify({success:false, error:'Select up to 3 FBX avatars'})};
-          updates.fbx_avatar_ids = fbx_avatar_ids;
-          break;
-        case 4:
-          updates.completed_profile = true;
-          break;
-        default:
-          if(username) updates.username=username;
-          if(bio) updates.bio=bio;
-          if(profile_picture) updates.profile_picture=profile_picture;
-          if(fbx_avatar_ids) updates.fbx_avatar_ids=fbx_avatar_ids;
-      }
-
-      // Online status
-      if(online_status){
-        if(!['online','offline'].includes(online_status)) 
-          return { statusCode:400, body:JSON.stringify({success:false, error:'Invalid online_status'})};
-        updates.online_status = online_status;
-        updates.last_online = new Date().toISOString();
-      }
-
-      // Change password
-      if(new_password){
-        if(!current_password) return { statusCode:400, body:JSON.stringify({success:false, error:'Current password required'})};
-        const match = await bcrypt.compare(current_password, user.encrypted_password || user.password);
-        if(!match) return { statusCode:401, body:JSON.stringify({success:false, error:'Incorrect current password'})};
-        updates.encrypted_password = await bcrypt.hash(new_password, 10);
-      }
-
-      // Remove undefined
-      updates = Object.fromEntries(Object.entries(updates).filter(([_,v])=>v!==undefined));
-
-      if(Object.keys(updates).length > 0){
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update(updates)
-          .eq('email', email)
-          .select()
-          .single();
-
-        if(updateError) return { statusCode:500, body:JSON.stringify({success:false, error:'Failed to update profile', details:updateError}) };
-        return {
-          statusCode:200,
-          headers: {
-            'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays*24*60*60}; SameSite=Strict`,
-            'Content-Type': 'application/json'
-          },
-          body:JSON.stringify({ success:true, message:'Profile updated successfully!', user:{...user,...updatedUser,password:undefined} })
-        };
-      }
-    }
-
-    // Return cookie if just verification
     return {
       statusCode: 200,
       headers: {
-        'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays*24*60*60}; SameSite=Strict`,
-        'Content-Type': 'application/json'
+        'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${90*24*60*60}; SameSite=Strict`,
+        'Content-Type':'application/json'
       },
-      body: JSON.stringify({ success: true, message: 'Device verified. Secure session created!' })
+      body: JSON.stringify({ success: true, message: step? 'Profile updated successfully!':'Device verified. Secure session created!', user:{...user,password:undefined} })
     };
 
-  } catch (err) {
+  } catch(err){
     console.error('Secure profile error:', err);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error', details: err.message }) };
+    return { statusCode:500, body:JSON.stringify({success:false,error:'Internal server error',details:err.message})};
   }
 };
