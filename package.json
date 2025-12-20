@@ -10,7 +10,7 @@
     "explore": "node netlify/functions/generateExplore.js",
     "signup": "node netlify/functions/signup.js",
     "login": "node netlify/functions/login.js",
-    "profile": "node netlify/functions/profileCreation.js"
+    "profile": "node/netlify/functions/profileCreation.js"
   },
   "author": "William Isaiah Jones",
   "license": "MIT",
@@ -25,8 +25,8 @@
     "cookie": "^0.5.0",
     "lambda-rate-limiter": "^4.0.2",
     "busboy": "^1.6.0"
-   },
-  "engines": {,
+  },
+  "engines": {
     "node": ">=18"
   }
 }
