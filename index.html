@@ -46,98 +46,99 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/daisyui@3.3.3/dist/full.css" rel="stylesheet">
 
-  <style>
-    body {
-      scroll-behavior: smooth;
-      font-family: 'Inter', sans-serif;
-    }
+<style>
+  body {
+    scroll-behavior: smooth;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #f3f4f6, #d1d5db); /* Light gradient from white to gray */
+  }
 
-    .sidebar-scroll {
-      overflow-y: auto;
-      max-height: calc(100vh - 80px);
-    }
+  .sidebar-scroll {
+    overflow-y: auto;
+    max-height: calc(100vh - 80px);
+  }
 
-    .video-list,
-    .audio-list {
-      max-height: 150px;
-      overflow-y: auto;
-    }
+  .video-list,
+  .audio-list {
+    max-height: 150px;
+    overflow-y: auto;
+  }
 
-    .nav-btn {
-      transition: all 0.2s ease-in-out;
-    }
+  .nav-btn {
+    transition: all 0.2s ease-in-out;
+  }
 
-    .nav-btn:hover {
-      transform: scale(1.05);
-      background-color: #7c3aed;
-      color: white;
-    }
+  .nav-btn:hover {
+    transform: scale(1.05);
+    background-color: #7c3aed;
+    color: white;
+  }
 
-    .output {
-      font-family: monospace;
-      padding: 10px;
-      border-radius: 6px;
-      margin-top: 10px;
-    }
+  .output {
+    font-family: monospace;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
 
-    .output.success {
-      background: #e6ffed;
-      color: #256d1b;
-      border: 1px solid #8dd48a;
-    }
+  .output.success {
+    background: #e6ffed;
+    color: #256d1b;
+    border: 1px solid #8dd48a;
+  }
 
-    .output.error {
-      background: #ffe6e6;
-      color: #a12626;
-      border: 1px solid #f5a3a3;
-    }
+  .output.error {
+    background: #ffe6e6;
+    color: #a12626;
+    border: 1px solid #f5a3a3;
+  }
 
-    .rounded-btn {
-      transition: all 0.2s ease-in-out;
-    }
+  .rounded-btn {
+    transition: all 0.2s ease-in-out;
+  }
 
-    .rounded-btn:hover {
-      transform: scale(1.05);
-      background-color: #4c1d95;
-      color: white;
-    }
+  .rounded-btn:hover {
+    transform: scale(1.05);
+    background-color: #4c1d95;
+    color: white;
+  }
 
-    .chat-bubble {
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 50px;
-      height: 50px;
-      background-color: #7c3aed;
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      cursor: pointer;
-      color: white;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      z-index: 50;
-    }
+  .chat-bubble {
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 50px;
+    height: 50px;
+    background-color: #7c3aed;
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+  }
 
-    .chat-bubble span {
-      font-size: 12px;
-    }
+  .chat-bubble span {
+    font-size: 12px;
+  }
 
-    .chat-bubble:hover {
-      background-color: #6b21a8;
-    }
+  .chat-bubble:hover {
+    background-color: #6b21a8;
+  }
 
-    .badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      background-color: red;
-      color: white;
-      padding: 4px;
-      border-radius: 50%;
-      font-size: 10px;
-    }
-  </style>
+  .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: red;
+    color: white;
+    padding: 4px;
+    border-radius: 50%;
+    font-size: 10px;
+  }
+</style>
 </head>
 
 <body class="flex h-screen bg-gradient-to-r from-purple-100 via-white to-blue-100">
@@ -145,8 +146,6 @@
   <!-- Sidebar -->
   <aside class="w-64 bg-white shadow-lg p-4 flex flex-col">
     <div class="text-center mb-6">
-      <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo"
-        class="w-28 mx-auto cursor-pointer transition-transform hover:scale-105 rounded-lg" onclick="loadPage('index.html')">
     </div>
     <div class="sidebar-scroll flex-1 space-y-3">
       <button class="btn btn-outline w-full rounded-btn" onclick="loadPage('create-bot.html')">⚙️ Create a Bot</button>
@@ -208,7 +207,7 @@
       <h3 class="text-xl font-semibold">Incoming Friend Requests</h3>
       <!-- Requests will be dynamically loaded here -->
     </div>
-    
+
   </main>
 
   <!-- Chat Bubble -->
@@ -299,7 +298,7 @@
         window.userEmail = user.email;
 
         const lastActive = new Date(user.last_online);
-        const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
+        const online = (Date.now() - lastActive.getTime()) < 5 * 60 * 1000 ? 'online' : 'offline';
         const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
 
         document.getElementById('profile').innerHTML = `
@@ -307,7 +306,7 @@
           <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
         `;
         document.getElementById('chatUsername').textContent = user.username || user.email;
-      } catch(e) {
+      } catch (e) {
         console.error('Failed to load profile', e);
       }
     }
@@ -332,7 +331,7 @@
             <button onclick="respond('${req.id}','rejected')">Reject</button>`;
           container.appendChild(div);
         });
-      } catch(e) { console.error(e); }
+      } catch (e) { console.error(e); }
     }
 
     window.respond = async (id, status) => {
@@ -369,7 +368,7 @@
           opt.textContent = `${v.name} (${v.lang})`;
           voiceSelect.appendChild(opt);
         });
-      } catch(err) {
+      } catch (err) {
         voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
         console.error(err);
       }
@@ -420,7 +419,7 @@
           <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
         output.className = 'output success';
         form.reset();
-      } catch(err) {
+      } catch (err) {
         output.textContent = 'Failed to create bot.';
         output.className = 'output error';
       }
