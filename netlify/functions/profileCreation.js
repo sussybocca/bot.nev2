@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import cookie from 'cookie';
 import { v4 as uuidv4 } from 'uuid';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -12,7 +13,7 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
-// Generate AES-GCM encrypted token
+// AES-GCM encrypted token
 function generateEncryptedToken() {
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(process.env.SESSION_SECRET, 'salt', 32);
@@ -51,47 +52,84 @@ export const handler = async (event) => {
     }
 
     const body = JSON.parse(event.body || '{}');
-    const {
-      step, email, verification_code, frontendFingerprint,
-      username, bio, profile_picture, fbx_avatar_ids, online_status,
-      new_password, current_password
-    } = body;
+    const { step, email, verification_code, frontendFingerprint, username, bio, profile_picture, fbx_avatar_ids, online_status, new_password, current_password } = body;
 
-    if (!email) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email is required' }) };
+    // 1️⃣ Check for existing session cookie
+    const cookies = cookie.parse(event.headers.cookie || '');
+    let user_email = null;
+    if (cookies['__Host-session_secure']) {
+      const sessionToken = cookies['__Host-session_secure'];
+      const { data: session } = await supabase.from('sessions')
+        .select('user_email, expires_at')
+        .eq('session_token', sessionToken)
+        .maybeSingle();
 
-    // Step 0: send verification code if not provided
-    if (!verification_code) {
-      const code = generateVerificationCode();
+      if (session && new Date(session.expires_at) > new Date()) {
+        user_email = session.user_email;
+      }
+    }
+
+    // 2️⃣ Step 0: email verification if no session
+    if (!user_email) {
+      if (!email) return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Email is required' }) };
+
+      if (!verification_code) {
+        const code = generateVerificationCode();
+        const fingerprint = getDeviceFingerprint(event.headers, frontendFingerprint);
+
+        await supabase.from('pending_verifications').upsert({
+          email, code, fingerprint,
+          expires_at: new Date(Date.now() + 15 * 60 * 1000)
+        }, { onConflict: ['email', 'fingerprint'] });
+
+        await sendVerificationEmail(email, code);
+
+        return { statusCode: 200, body: JSON.stringify({ success: true, verification_required: true, message: 'Verification code sent to email.' }) };
+      }
+
+      // Verify code
+      const { data: pending } = await supabase.from('pending_verifications')
+        .select('*').eq('email', email).maybeSingle();
+
+      if (!pending || pending.code !== verification_code || new Date(pending.expires_at) < new Date()) {
+        return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid or expired verification code' }) };
+      }
+
+      user_email = email;
+
+      // Fetch or create user
+      let { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
+      if (!user) {
+        const { data: newUser, error: createError } = await supabase.from('users').insert({ email }).select().single();
+        if (createError) throw createError;
+        user = newUser;
+      }
+
+      // Create session cookie
+      const session_token = generateEncryptedToken();
       const fingerprint = getDeviceFingerprint(event.headers, frontendFingerprint);
+      await supabase.from('sessions').insert({
+        user_email, session_token, fingerprint,
+        expires_at: new Date(Date.now() + 90*24*60*60*1000),
+        verified: true
+      });
 
-      await supabase.from('pending_verifications').upsert({
-        email, code, fingerprint,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000)
-      }, { onConflict: ['email', 'fingerprint'] });
+      await supabase.from('pending_verifications').delete().eq('email', email);
 
-      await sendVerificationEmail(email, code);
-
-      return { statusCode: 200, body: JSON.stringify({ success: true, verification_required: true, message: 'Verification code sent to email.' }) };
+      return {
+        statusCode: 200,
+        headers: {
+          'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${90*24*60*60}; SameSite=Strict`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ success:true, message:'Device verified. Secure session created!', user:{...user,password:undefined} })
+      };
     }
 
-    // Verify code
-    const { data: pending } = await supabase.from('pending_verifications')
-      .select('*').eq('email', email).maybeSingle();
+    // 3️⃣ Step 1+: Profile updates
+    let { data: user } = await supabase.from('users').select('*').eq('email', user_email).maybeSingle();
+    if (!user) return { statusCode: 404, body: JSON.stringify({ success:false, error:'User not found' }) };
 
-    if (!pending || pending.code !== verification_code || new Date(pending.expires_at) < new Date()) {
-      return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Invalid or expired verification code' }) };
-    }
-
-    // Fetch or create user
-    let { data: user } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
-    if (!user) {
-      // Create empty user record if it doesn’t exist
-      const { data: newUser, error: createError } = await supabase.from('users').insert({ email }).select().single();
-      if (createError) throw createError;
-      user = newUser;
-    }
-
-    // Process profile steps
     let updates = {};
     if (step) {
       switch(step){
@@ -120,7 +158,7 @@ export const handler = async (event) => {
       if (Object.keys(updates).length>0) {
         const { data: updatedUser, error: updateError } = await supabase.from('users')
           .update(updates)
-          .eq('email', email)
+          .eq('email', user_email)
           .select()
           .single();
         if (updateError) throw updateError;
@@ -128,28 +166,7 @@ export const handler = async (event) => {
       }
     }
 
-    // Create session
-    const session_token = generateEncryptedToken();
-    const fingerprint = getDeviceFingerprint(event.headers, frontendFingerprint);
-    await supabase.from('sessions').insert({
-      user_email: email,
-      session_token,
-      fingerprint,
-      expires_at: new Date(Date.now() + 90*24*60*60*1000),
-      verified: true
-    });
-
-    // Delete pending verification
-    await supabase.from('pending_verifications').delete().eq('email', email);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${90*24*60*60}; SameSite=Strict`,
-        'Content-Type':'application/json'
-      },
-      body: JSON.stringify({ success: true, message: step? 'Profile updated successfully!':'Device verified. Secure session created!', user:{...user,password:undefined} })
-    };
+    return { statusCode:200, body: JSON.stringify({ success:true, message:'Profile updated successfully!', user:{...user,password:undefined} }) };
 
   } catch(err){
     console.error('Secure profile error:', err);
