@@ -124,13 +124,13 @@
         <a href="/index.html?user=@scoobydo">🏠 Home</a>
         <a href="/login.html?redirect=user=@scoobydo">🔗 Login</a>
         <a href="signup.html">Signup</a>
-        <a href="page/index.html?ref=@scoobydoo">🤣 boteos</a>
-        <a href="dialogue.html?ref=@fortniteCod6">🙇🧏‍♀️🧏‍♂️🧏 dialogue</a>
-        <a href="email.html?ref=@dude">🚓🚕🛺 email</a>
-        <a href="fullSettings.html?ref=@nathenisdiddy">🎇🧨✨🎉 nateyourdiddy</a>
-        <a href="site-builder.html?ref=@IsaiahIsStraight">🎇🧨✨🎉 site-builder</a>
-        <a href="recovery-login.html?ref=@recovery-login">🔗 recovery-login</a>
-        <a href="video.html?ref=@video-page">🎇🧨✨🎉 video-page</a>
+        <a href="page/index.html?ref=@scoobydoo">🤣 Boteos</a>
+        <a href="dialogue.html?ref=@fortniteCod6">🙇 Dialogue</a>
+        <a href="email.html?ref=@dude">🚓 Email</a>
+        <a href="fullSettings.html?ref=@nathenisdiddy">🎇 Settings</a>
+        <a href="site-builder.html?ref=@IsaiahIsStraight">🎇 Site Builder</a>
+        <a href="recovery-login.html?ref=@recovery-login">🔗 Recovery Login</a>
+        <a href="video.html?ref=@video-page">🎇 Video Page</a>
       </nav>
     </div>
 
@@ -144,11 +144,11 @@
 
   <script>
     // -----------------------
-// SHOW TEST ACCOUNT ALERT
-// -----------------------
-window.addEventListener('DOMContentLoaded', () => {});
+    // SHOW TEST ACCOUNT ALERT
+    // -----------------------
+    window.addEventListener('DOMContentLoaded', () => {});
 
-  // -----------------------
+    // -----------------------
     // PAGE LOADING
     // -----------------------
     function loadPage(pageUrl) {
@@ -173,7 +173,6 @@ window.addEventListener('DOMContentLoaded', () => {});
           script.src = pageUrl.replace('.html', '.js'); // Assuming the JS file has the same name as the HTML
           script.onload = () => {
             console.log(`Successfully loaded script for ${pageUrl}`);
-
             // Reinitialize any necessary functions here
             initializeNetlifyFunctions();  // Make sure your Netlify Functions get triggered
           };
@@ -185,176 +184,175 @@ window.addEventListener('DOMContentLoaded', () => {});
         });
     }
 
-// -----------------------
-// PROFILE LOADING
-// -----------------------
-async function loadProfile() {
-  try {
-    const res = await fetch('/.netlify/functions/profileCreation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
-    const result = await res.json();
-    if (!result.success) throw new Error(result.error || 'Failed to fetch user');
+    // -----------------------
+    // PROFILE LOADING
+    // -----------------------
+    async function loadProfile() {
+      try {
+        const res = await fetch('/.netlify/functions/profileCreation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error || 'Failed to fetch user');
 
-    const user = result.user;
-    window.userEmail = user.email;
+        const user = result.user;
+        window.userEmail = user.email;
 
-    const lastActive = new Date(user.last_online);
-    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
-    const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
+        const lastActive = new Date(user.last_online);
+        const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
+        const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
 
-    document.getElementById('profile').innerHTML = `
-      <img src="${avatarUrl}" alt="Profile" />
-      <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
-    `;
-    document.getElementById('chatUsername').textContent = user.username || user.email;
-  } catch(e) {
-    console.error('Failed to load profile', e);
-  }
-}
-
-// -----------------------
-// FRIEND REQUEST HANDLING
-// -----------------------
-async function loadIncoming() {
-  try {
-    const res = await fetch('/.netlify/functions/friend-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ action:'list', user_email: window.userEmail })
-    });
-    const data = await res.json();
-    const container = document.getElementById('incomingRequests');
-    container.innerHTML = '';
-    data.forEach(req => {
-      const div = document.createElement('div');
-      div.innerHTML = `<span>${req.sender_email}</span>
-        <button onclick="respond('${req.id}','accepted')">Accept</button>
-        <button onclick="respond('${req.id}','rejected')">Reject</button>`;
-      container.appendChild(div);
-    });
-  } catch(e){ console.error(e); }
-}
-
-window.respond = async (id,status) => {
-  const res = await fetch('/.netlify/functions/friend-requests', {
-    method: 'POST',
-    headers:{'Content-Type':'application/json'},
-    credentials: 'include',
-    body: JSON.stringify({ action:'respond', request_id:id, status })
-  });
-  const data = await res.json();
-  alert(data.success ? `Request ${status}` : data.error);
-  loadIncoming();
-}
-
-document.getElementById('sendRequestBtn').addEventListener('click', async () => {
-  const receiver_email = document.getElementById('friendEmail').value;
-  const res = await fetch('/.netlify/functions/friend-requests', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    credentials: 'include',
-    body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email })
-  });
-  const data = await res.json();
-  alert(data.success ? 'Request sent!' : data.error);
-  loadIncoming();
-});
-
-// -----------------------
-// BOT CREATION
-// -----------------------
-const form = document.getElementById('botForm');
-const output = document.getElementById('output');
-const voiceSelect = document.getElementById('voiceSelect');
-const fbxSelect = document.getElementById('fbxSelect');
-
-async function loadVoices() {
-  try {
-    const res = await fetch('/.netlify/functions/get-voices', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials: 'include'
-    });
-    const voices = await res.json();
-    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = `${v.name} (${v.lang})`;
-      voiceSelect.appendChild(opt);
-    });
-  } catch(err) {
-    voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
-    console.error(err);
-  }
-}
-
-const fbxModels = [
-  {id:'model1',name:'Humanoid Default'},
-  {id:'model2',name:'Robot Model'}
-];
-fbxModels.forEach(m => {
-  const opt = document.createElement('option');
-  opt.value = m.id;
-  opt.textContent = m.name;
-  fbxSelect.appendChild(opt);
-});
-
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const name = document.getElementById('botName').value.trim();
-  const description = document.getElementById('description').value.trim();
-  const voice_id = voiceSelect.value;
-  const fbx_model_id = fbxSelect.value;
-  const paid_link = document.getElementById('gumroadLink').value.trim();
-
-  if(!name || !description || !voice_id || !fbx_model_id){
-    output.textContent='Please fill all required fields.'; 
-    output.className='output error'; 
-    return;
-  }
-
-  output.textContent='Creating bot...'; 
-  output.className='output';
-
-  try {
-    const res = await fetch('/.netlify/functions/overpoweredbot', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials: 'include',
-      body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
-    });
-    const data = await res.json();
-    if(!res.ok || data.error){ 
-      output.textContent=`Error: ${data.error||'Unknown'}`; 
-      output.className='output error'; 
-      return; 
+        document.getElementById('profile').innerHTML = `
+          <img src="${avatarUrl}" alt="Profile" />
+          <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
+        `;
+        document.getElementById('chatUsername').textContent = user.username || user.email;
+      } catch(e) {
+        console.error('Failed to load profile', e);
+      }
     }
-    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br>
-      <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
-    output.className='output success'; 
-    form.reset();
-  } catch(err){
-    output.textContent='Failed to create bot.'; 
-    output.className='output error';
-  }
-});
 
-// -----------------------
-// CHAT NAVIGATION
-// -----------------------
-function openChat() { window.location.href = '/chat.html'; }
+    // -----------------------
+    // FRIEND REQUEST HANDLING
+    // -----------------------
+    async function loadIncoming() {
+      try {
+        const res = await fetch('/.netlify/functions/friend-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action:'list', user_email: window.userEmail })
+        });
+        const data = await res.json();
+        const container = document.getElementById('incomingRequests');
+        container.innerHTML = '';
+        data.forEach(req => {
+          const div = document.createElement('div');
+          div.innerHTML = `<span>${req.sender_email}</span>
+            <button onclick="respond('${req.id}','accepted')">Accept</button>
+            <button onclick="respond('${req.id}','rejected')">Reject</button>`;
+          container.appendChild(div);
+        });
+      } catch(e){ console.error(e); }
+    }
 
-// -----------------------
-// INITIAL LOAD
-// -----------------------
-loadProfile().then(loadIncoming).then(loadVoices);
-</script>
+    window.respond = async (id,status) => {
+      const res = await fetch('/.netlify/functions/friend-requests', {
+        method: 'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ action:'respond', request_id:id, status })
+      });
+      const data = await res.json();
+      alert(data.success ? `Request ${status}` : data.error);
+      loadIncoming();
+    }
+
+    document.getElementById('sendRequestBtn').addEventListener('click', async () => {
+      const receiver_email = document.getElementById('friendEmail').value;
+      const res = await fetch('/.netlify/functions/friend-requests', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email })
+      });
+      const data = await res.json();
+      alert(data.success ? 'Request sent!' : data.error);
+      loadIncoming();
+    });
+
+    // -----------------------
+    // BOT CREATION
+    // -----------------------
+    const form = document.getElementById('botForm');
+    const output = document.getElementById('output');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const fbxSelect = document.getElementById('fbxSelect');
+
+    async function loadVoices() {
+      try {
+        const res = await fetch('/.netlify/functions/get-voices', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          credentials: 'include'
+        });
+        const voices = await res.json();
+        voiceSelect.innerHTML = '<option value="">Select Voice</option>';
+        voices.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.id;
+          opt.textContent = `${v.name} (${v.lang})`;
+          voiceSelect.appendChild(opt);
+        });
+      } catch(err) {
+        voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
+        console.error(err);
+      }
+    }
+
+    const fbxModels = [
+      {id:'model1',name:'Humanoid Default'},
+      {id:'model2',name:'Robot Model'}
+    ];
+    fbxModels.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.name;
+      fbxSelect.appendChild(opt);
+    });
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('botName').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const voice_id = voiceSelect.value;
+      const fbx_model_id = fbxSelect.value;
+      const paid_link = document.getElementById('gumroadLink').value.trim();
+
+      if(!name || !description || !voice_id || !fbx_model_id){
+        output.textContent='Please fill all required fields.'; 
+        output.className='output error'; 
+        return;
+      }
+
+      output.textContent='Creating bot...'; 
+      output.className='output';
+
+      try {
+        const res = await fetch('/.netlify/functions/overpoweredbot', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          credentials: 'include',
+          body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
+        });
+        const data = await res.json();
+        if(!res.ok || data.error){ 
+          output.textContent=`Error: ${data.error||'Unknown'}`; 
+          output.className='output error'; 
+          return; 
+        }
+        output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br>
+          <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
+        output.className='output success'; 
+        form.reset();
+      } catch(err){
+        output.textContent='Failed to create bot.'; 
+        output.className='output error';
+      }
+    });
+
+    // -----------------------
+    // CHAT NAVIGATION
+    // -----------------------
+    function openChat() { window.location.href = '/chat.html'; }
+
+    // -----------------------
+    // INITIAL LOAD
+    // -----------------------
+    loadProfile().then(loadIncoming).then(loadVoices);
+  </script>
 
 </body>
 </html>
-
