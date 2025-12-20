@@ -18,24 +18,6 @@ export const handler = async () => {
 
     const videosWithUser = await Promise.all(
       files.map(async (file) => {
-        // Get video metadata from videos table
-        const { data: videoRecord, error: videoError } = await supabase
-          .from('videos')
-          .select('id, user_id, created_at')
-          .eq('video_url', file.name)
-          .maybeSingle();
-
-        if (videoError || !videoRecord) return null;
-
-        // Fetch user info
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, email')
-          .eq('id', videoRecord.user_id)
-          .maybeSingle();
-
-        const user = userData ? { id: userData.id, email: userData.email } : null;
-
         // Create signed URL for the video
         const { data: signedUrlData, error: signedUrlError } = await supabase
           .storage
@@ -44,20 +26,46 @@ export const handler = async () => {
 
         if (signedUrlError) return null;
 
+        // Get video metadata from videos table
+        const { data: videoRecord, error: videoError } = await supabase
+          .from('videos')
+          .select('user_id, created_at')
+          .eq('video_url', file.name)
+          .maybeSingle();
+
+        if (videoError || !videoRecord) return null;
+
+        // Fetch user info from users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('id', videoRecord.user_id)
+          .maybeSingle();
+
+        // Safely handle returned user
+        const user = userData ? { id: userData.id, email: userData.email } : null;
+
+        // Convert created_at string to ISO string to avoid Invalid Date
+        const uploaded_at = videoRecord.created_at
+          ? new Date(videoRecord.created_at).toISOString()
+          : null;
+
         return {
-          id: videoRecord.id,
           name: file.name,
           size: file.size,
-          uploaded_at: videoRecord.created_at,
+          uploaded_at,
           videoUrl: signedUrlData.signedUrl,
           user
         };
       })
     );
 
+    // Remove any nulls in case some lookups failed
+    const filteredVideos = videosWithUser.filter(v => v);
+
     return {
       statusCode: 200,
-      body: JSON.stringify(videosWithUser.filter(v => v)) // remove nulls
+      body: JSON.stringify(filteredVideos)
     };
   } catch (err) {
     return { statusCode: 500, body: err.message };
