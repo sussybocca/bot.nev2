@@ -3,8 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <title>Explore Bots</title>
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="https://botnet2.netlify.app/assets/logo.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://botnet2.netlify.app/assets/logo.png">
+
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+
+/* Top logo header */
+#siteHeader {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#topLogo {
+  max-height: 80px;
+  cursor: pointer;
+}
+
 .bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 input { padding: 5px; width: 70%; margin-right: 5px; }
 button { padding: 5px 10px; margin-right:5px; }
@@ -12,6 +29,14 @@ button { padding: 5px 10px; margin-right:5px; }
 </style>
 </head>
 <body>
+
+<!-- Top Logo -->
+<header id="siteHeader">
+  <a href="/index.html">
+    <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" />
+  </a>
+</header>
+
 <h1>Explore Bots</h1>
 <div id="bots-container">Loading bots...</div>
 
@@ -109,5 +134,6 @@ async function fetchBots() {
 
 window.addEventListener('DOMContentLoaded', fetchBots);
 </script>
+
 </body>
 </html>
