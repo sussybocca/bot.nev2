@@ -20,6 +20,7 @@
   <div id="result"></div>
 
   <script>
+    // Try to get session token (non-HTTP-only fallback)
     function getSessionCookie() {
       const cookies = document.cookie.split(';').map(c => c.trim());
       const sessionCookie = cookies.find(c => c.startsWith('__Host-session_secure='));
@@ -40,27 +41,29 @@
         return;
       }
 
-      const sessionToken = getSessionCookie();
-      if (!sessionToken) {
-        alert('No valid session found. Please log in.');
-        return;
-      }
-
       const progressBar = document.getElementById('progressBar');
       progressBar.style.display = 'block';
       progressBar.value = 0;
 
       const reader = new FileReader();
       reader.readAsArrayBuffer(file);
+
       reader.onload = async () => {
         const arrayBuffer = reader.result;
         try {
+          const sessionToken = getSessionCookie();
+
+          const headers = {};
+          if (sessionToken) {
+            headers['Authorization'] = 'Bearer ' + sessionToken;
+          }
+
+          // fetch with credentials so HTTP-only cookie is sent automatically
           const response = await fetch('/.netlify/functions/uploadVideo', {
             method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + sessionToken
-            },
-            body: arrayBuffer
+            headers,
+            body: arrayBuffer,
+            credentials: 'same-origin'
           });
 
           if (!response.ok) {
