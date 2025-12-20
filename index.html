@@ -4,28 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Page Title & Description -->
 <title>Friend Requests & Create Bot — Botnev</title>
 <meta name="description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
 
-<!-- Favicon -->
 <link rel="icon" type="image/png" sizes="32x32" href="https://botnet2.netlify.app/assets/logo.png">
 <link rel="icon" type="image/png" sizes="16x16" href="https://botnet2.netlify.app/assets/logo.png">
 
-<!-- Open Graph (for social media sharing) -->
 <meta property="og:title" content="Friend Requests & Create Bot — Botnev">
 <meta property="og:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
 <meta property="og:image" content="https://botnet2.netlify.app/assets/og-image.png">
 <meta property="og:url" content="https://botnet2.netlify.app/create-bot.html">
 <meta property="og:type" content="website">
-
-<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Friend Requests & Create Bot — Botnev">
 <meta name="twitter:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
 <meta name="twitter:image" content="https://botnet2.netlify.app/assets/og-image.png">
 
-<!-- Structured Data (JSON-LD) -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -36,262 +30,179 @@
   "publisher": {
     "@type": "Organization",
     "name": "Botnev",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://botnet2.netlify.app/assets/logo.png"
-    }
+    "logo": { "@type": "ImageObject", "url": "https://botnet2.netlify.app/assets/logo.png" }
   }
 }
 </script>
 
-<style>
-  body { font-family: Arial, sans-serif; background:#f9fafc; margin:0; padding:20px; text-align:center; }
-  h1 { color:#333; }
-  .profile-header { display:flex; align-items:center; justify-content:center; margin-bottom:20px; gap:15px; }
-  .profile-header img { width:50px; height:50px; border-radius:50%; object-fit:cover; }
-  .online { color:lime; font-weight:bold; }
-  .offline { color:gray; font-weight:bold; }
-  form { margin:20px auto; max-width:500px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-  input, textarea, select, button { width:100%; margin-bottom:15px; padding:10px; font-size:14px; border-radius:5px; border:1px solid #ccc; }
-  button { background:#007bff; color:white; border:none; cursor:pointer; }
-  button:hover { background:#0056b3; }
-  .output { margin-top:15px; font-family:monospace; padding:10px; border-radius:6px; }
-  .output.success { background:#e6ffed; color:#256d1b; border:1px solid #8dd48a; }
-  .output.error { background:#ffe6e6; color:#a12626; border:1px solid #f5a3a3; }
-  .links-container { margin-top:25px; display:flex; justify-content:center; flex-wrap:wrap; gap:10px; }
-  .links-container a { padding:8px 15px; background:#fff; border-radius:8px; text-decoration:none; color:#007bff; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1); transition:0.2s; }
-  .links-container a:hover { background:#007bff; color:#fff; }
-  #incomingRequests div { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:5px; background:#fff; border-radius:5px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-  #incomingRequests div button { margin-left:5px; padding:3px 8px; }
-  #chatBubble { position: fixed; bottom: 20px; right: 20px; width: 64px; height: 64px; border-radius: 50%; background: #007bff; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 9999; }
-  #chatBubble span { font-size: 10px; margin-top: 2px; max-width: 55px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #chatBadge { position: absolute; top: 6px; right: 6px; background: red; color: white; font-size: 10px; padding: 2px 6px; border-radius: 50%; display: none; }
-  #siteLogo { text-align: center; margin-bottom: 15px; }
-  #siteLogo img { max-width: 150px; height: auto; cursor: pointer; transition: transform 0.2s; }
-  #siteLogo img:hover { transform: scale(1.05); }
-</style>
+<!-- Tailwind + DaisyUI -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/daisyui@3.3.3/dist/full.css" rel="stylesheet">
 </head>
-<body>
+<body class="flex h-screen bg-base-200 font-sans">
 
-<!-- Top Logo -->
-<header id="siteHeader">
-  <a href="/index.html">
-    <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" />
-  </a>
-</header>
+<!-- Sidebar -->
+<nav class="w-56 bg-gray-900 text-white flex flex-col p-5 space-y-2">
+  <div class="text-center mb-6">
+    <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" class="w-28 mx-auto cursor-pointer transition-transform duration-300 hover:scale-105 rounded-lg" onclick="loadPage('index.html')">
+  </div>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('create-bot.html')">⚙️ Create a Bot</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('marketplace.html')">🛒 Marketplace</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('explore.html')">🔍 Explore Bots</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('index.html')">🏠 Home</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('login.html')">🔗 Login</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('signup.html')">Signup</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('boteos.html')">🤣 Boteos</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('dialogue.html')">🙇 Dialogue</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('email.html')">🚓 Email</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('settings.html')">🎇 Settings</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('site-builder.html')">🛠 Site Builder</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('recovery.html')">🔗 Recovery</a>
+  <a class="btn btn-ghost w-full justify-start" onclick="loadPage('video.html')">🔊 Video Page</a>
+</nav>
 
-<div class="profile-header" id="profile"></div>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto p-6">
+  <header class="text-center mb-6">
+    <a href="/index.html"><img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" class="mx-auto max-w-xs transition-transform duration-300 hover:scale-105 rounded-lg" id="topLogo" /></a>
+  </header>
 
-<h1>🤖 Create Your Bot</h1>
+  <div class="flex items-center justify-center gap-4 mb-6" id="profile"></div>
 
-<form id="botForm">
-  <input type="text" id="botName" placeholder="Bot Name" required />
-  <textarea id="description" placeholder="Describe your bot..." required></textarea>
+  <h1 class="text-2xl font-semibold mb-4">🤖 Create Your Bot</h1>
+  <form id="botForm" class="max-w-md mx-auto bg-base-100 p-6 rounded-lg shadow-lg space-y-4">
+    <input type="text" id="botName" placeholder="Bot Name" class="input input-bordered w-full" required />
+    <textarea id="description" placeholder="Describe your bot..." class="textarea textarea-bordered w-full" required></textarea>
 
-  <label for="voiceSelect">Select Voice:</label>
-  <select id="voiceSelect" required><option value="">Loading voices...</option></select>
+    <label for="voiceSelect" class="block mb-1 font-medium">Select Voice:</label>
+    <select id="voiceSelect" class="select select-bordered w-full" required>
+      <option value="">Loading voices...</option>
+    </select>
 
-  <label for="fbxSelect">Select FBX Model:</label>
-  <select id="fbxSelect" required><option value="">Choose FBX Model</option></select>
+    <label for="fbxSelect" class="block mb-1 font-medium">Select FBX Model:</label>
+    <select id="fbxSelect" class="select select-bordered w-full" required>
+      <option value="">Choose FBX Model</option>
+    </select>
 
-  <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link for paid model" />
-  <button type="submit">Create Bot</button>
-</form>
+    <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link for paid model" class="input input-bordered w-full" />
+    <button type="submit" class="btn btn-primary w-full">Create Bot</button>
+  </form>
 
-<div id="output" class="output"></div>
+  <div id="output" class="mt-4 font-mono p-3 rounded bg-base-200"></div>
 
-<h2>Incoming Friend Requests</h2>
-<div id="incomingRequests"></div>
+  <h2 class="text-xl font-semibold mt-8 mb-4">Incoming Friend Requests</h2>
+  <div id="incomingRequests" class="space-y-2"></div>
 
-<input type="email" id="friendEmail" placeholder="Friend's Email">
-<button id="sendRequestBtn">Send Friend Request</button>
+  <input type="email" id="friendEmail" placeholder="Friend's Email" class="input input-bordered w-full max-w-md mb-2" />
+  <button id="sendRequestBtn" class="btn btn-primary">Send Friend Request</button>
+</main>
 
-<div class="links-container">
-  <nav>
-    <a href="/create.html?user=@scoobydo">⚙️ Create a Bot</a>
-    <a href="/marketplace.html?character=scoobydo">🛒 Marketplace</a>
-    <a href="/explore.html?user=@scoobydo">🔍 Explore Bots</a>
-    <a href="/index.html?user=@scoobydo">🏠 Home</a>
-    <a href="/login.html?redirect=user=@scoobydo">🔗 Login</a>
-    <a href="signup.html">Signup</a>
-    <a href="page/index.html?ref=@scoobydoo">🤣 boteos</a>
-    <a href="dialogue.html?ref=@fortniteCod6">🙇🧏‍♀️🧏‍♂️🧏 dialogue</a>
-    <a href="email.html?ref=@dude">🚓🚕🛺 email</a>
-    <a href="fullSettings.html?ref=@nathenisdiddy">🎇🧨✨🎉 nateyourdiddy</a>
-    <a href="site-builder.html?ref=@IsaiahIsStraight">🎇🧨✨🎉 site-builder</a>
-    <a href="recovery-login.html?ref=@recovery-login">🔗 recovery-login</a>
-     <a href="video.html?ref=@video-page">🔊🎧🪗📻💿💽📀 video-page</a>
-  </nav>
-</div>
-
-<div id="chatBubble" onclick="openChat()">
+<!-- Chat Bubble -->
+<div id="chatBubble" class="fixed bottom-5 right-5 w-16 h-16 rounded-full bg-primary text-white flex flex-col items-center justify-center cursor-pointer shadow-lg z-50" onclick="openChat()">
   💬
-  <span id="chatUsername">Chat</span>
-  <div id="chatBadge">!</div>
+  <span id="chatUsername" class="text-xs mt-1 truncate max-w-[55px]">Chat</span>
+  <div id="chatBadge" class="absolute top-1 right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden">!</div>
 </div>
 
 <script>
-// -----------------------
-// LOAD USER PROFILE
-// -----------------------
+/* --- Load User Profile --- */
 async function loadProfile() {
   try {
-    const res = await fetch('/.netlify/functions/profileCreation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include'
-    });
+    const res = await fetch('/.netlify/functions/profileCreation', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
     const result = await res.json();
-    if (!result.success) throw new Error(result.error || 'Failed to fetch user');
-
+    if(!result.success) throw new Error(result.error || 'Failed to fetch user');
     const user = result.user;
     window.userEmail = user.email;
     const lastActive = new Date(user.last_online);
-    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online' : 'offline';
+    const online = (Date.now() - lastActive.getTime()) < 5*60*1000 ? 'online':'offline';
     const avatarUrl = user.profile_picture || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email)}.svg`;
-
-    document.getElementById('profile').innerHTML = `
-      <img src="${avatarUrl}" alt="Profile" />
-      <span>${user.username || user.email} - <span class="${online}">${online}</span></span>
-    `;
-    document.getElementById('chatUsername').textContent = user.username || user.email;
-  } catch(e) { console.error('Failed to load profile', e); }
+    document.getElementById('profile').innerHTML = `<img src="${avatarUrl}" alt="Profile" class="w-12 h-12 rounded-full"/><span>${user.username||user.email} - <span class="${online}">${online}</span></span>`;
+    document.getElementById('chatUsername').textContent = user.username||user.email;
+  } catch(e){ console.error(e); }
 }
 
-// -----------------------
-// FRIEND REQUESTS
-// -----------------------
+/* --- Load Friend Requests --- */
 async function loadIncoming() {
   try {
-    const res = await fetch('/.netlify/functions/friend-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ action:'list', user_email: window.userEmail })
-    });
+    const res = await fetch('/.netlify/functions/friend-requests', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({action:'list', user_email: window.userEmail})});
     const data = await res.json();
     const container = document.getElementById('incomingRequests');
-    container.innerHTML = '';
-    data.forEach(req => {
+    container.innerHTML='';
+    data.forEach(req=>{
       const div = document.createElement('div');
-      div.innerHTML = `<span>${req.sender_email}</span>
-        <button onclick="respond('${req.id}','accepted')">Accept</button>
-        <button onclick="respond('${req.id}','rejected')">Reject</button>`;
+      div.className='flex items-center justify-between bg-base-100 p-2 rounded shadow';
+      div.innerHTML=`<span>${req.sender_email}</span><div><button onclick="respond('${req.id}','accepted')" class="btn btn-xs btn-success mr-1">Accept</button><button onclick="respond('${req.id}','rejected')" class="btn btn-xs btn-error">Reject</button></div>`;
       container.appendChild(div);
     });
   } catch(e){ console.error(e); }
 }
 
-window.respond = async (id,status) => {
-  const res = await fetch('/.netlify/functions/friend-requests', {
-    method: 'POST',
-    headers:{'Content-Type':'application/json'},
-    credentials: 'include',
-    body: JSON.stringify({ action:'respond', request_id:id, status })
-  });
+/* --- Respond to Friend Request --- */
+window.respond=async(id,status)=>{
+  const res = await fetch('/.netlify/functions/friend-requests',{method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({action:'respond', request_id:id, status})});
   const data = await res.json();
-  alert(data.success ? `Request ${status}` : data.error);
+  alert(data.success?`Request ${status}`:data.error);
   loadIncoming();
 }
 
-document.getElementById('sendRequestBtn').addEventListener('click', async () => {
-  const receiver_email = document.getElementById('friendEmail').value;
-  const res = await fetch('/.netlify/functions/friend-requests', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    credentials: 'include',
-    body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email })
-  });
-  const data = await res.json();
-  alert(data.success ? 'Request sent!' : data.error);
+/* --- Send Friend Request --- */
+document.getElementById('sendRequestBtn').addEventListener('click',async()=>{
+  const receiver_email=document.getElementById('friendEmail').value;
+  const res=await fetch('/.netlify/functions/friend-requests',{method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({action:'send', sender_email:window.userEmail, receiver_email})});
+  const data=await res.json();
+  alert(data.success?'Request sent!':data.error);
   loadIncoming();
 });
 
-// -----------------------
-// BOT CREATION
-// -----------------------
-const form = document.getElementById('botForm');
-const output = document.getElementById('output');
-const voiceSelect = document.getElementById('voiceSelect');
-const fbxSelect = document.getElementById('fbxSelect');
+/* --- Bot Form --- */
+const form=document.getElementById('botForm');
+const output=document.getElementById('output');
+const voiceSelect=document.getElementById('voiceSelect');
+const fbxSelect=document.getElementById('fbxSelect');
 
-async function loadVoices() {
-  try {
-    const res = await fetch('/.netlify/functions/get-voices', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials: 'include'
-    });
-    const voices = await res.json();
-    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = `${v.name} (${v.lang})`;
-      voiceSelect.appendChild(opt);
-    });
-  } catch(err) { voiceSelect.innerHTML = '<option value="">Failed to load voices</option>'; console.error(err); }
+/* --- Load Voices --- */
+async function loadVoices(){
+  try{
+    const res=await fetch('/.netlify/functions/get-voices',{method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include'});
+    const voices=await res.json();
+    voiceSelect.innerHTML='<option value="">Select Voice</option>';
+    voices.forEach(v=>{ const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
+  }catch(err){voiceSelect.innerHTML='<option value="">Failed to load voices</option>'; console.error(err);}
 }
 
-const fbxModels = [
-  {id:'model1',name:'Humanoid Default'},
-  {id:'model2',name:'Robot Model'}
-];
-fbxModels.forEach(m => {
-  const opt = document.createElement('option');
-  opt.value = m.id;
-  opt.textContent = m.name;
-  fbxSelect.appendChild(opt);
-});
+/* --- FBX Models --- */
+const fbxModels=[{id:'model1',name:'Humanoid Default'},{id:'model2',name:'Robot Model'}];
+fbxModels.forEach(m=>{const opt=document.createElement('option'); opt.value=m.id; opt.textContent=m.name; fbxSelect.appendChild(opt);});
 
-form.addEventListener('submit', async e => {
+/* --- Submit Bot Form --- */
+form.addEventListener('submit',async e=>{
   e.preventDefault();
-  const name = document.getElementById('botName').value.trim();
-  const description = document.getElementById('description').value.trim();
-  const voice_id = voiceSelect.value;
-  const fbx_model_id = fbxSelect.value;
-  const paid_link = document.getElementById('gumroadLink').value.trim();
-
-  if(!name || !description || !voice_id || !fbx_model_id){
-    output.textContent='Please fill all required fields.'; 
-    output.className='output error'; 
-    return;
-  }
-
-  output.textContent='Creating bot...'; 
-  output.className='output';
-
-  try {
-    const res = await fetch('/.netlify/functions/overpoweredbot', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials: 'include',
-      body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
-    });
-    const data = await res.json();
-    if(!res.ok || data.error){ 
-      output.textContent=`Error: ${data.error||'Unknown'}`; 
-      output.className='output error'; 
-      return; 
-    }
-    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br>
-      <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
-    output.className='output success'; 
+  const name=document.getElementById('botName').value.trim();
+  const description=document.getElementById('description').value.trim();
+  const voice_id=voiceSelect.value;
+  const fbx_model_id=fbxSelect.value;
+  const paid_link=document.getElementById('gumroadLink').value.trim();
+  if(!name||!description||!voice_id||!fbx_model_id){output.textContent='Please fill all required fields.'; output.className='mt-4 font-mono p-3 rounded bg-red-100 text-red-700'; return;}
+  output.textContent='Creating bot...'; output.className='mt-4 font-mono p-3 rounded bg-base-200';
+  try{
+    const res=await fetch('/.netlify/functions/overpoweredbot',{method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({name, description, voice_id, fbx_model_id, paid_link})});
+    const data=await res.json();
+    if(!res.ok||data.error){ output.textContent=`Error: ${data.error||'Unknown'}`; output.className='mt-4 font-mono p-3 rounded bg-red-100 text-red-700'; return;}
+    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br><a href="/explore.html" class="link link-primary">🔍 Explore</a> | <a href="/index.html" class="link link-primary">🏠 Home</a>`;
+    output.className='mt-4 font-mono p-3 rounded bg-green-100 text-green-700';
     form.reset();
-  } catch(err){ output.textContent='Failed to create bot.'; output.className='output error'; }
+  }catch(err){output.textContent='Failed to create bot.'; output.className='mt-4 font-mono p-3 rounded bg-red-100 text-red-700';}
 });
 
-// -----------------------
-// CHAT NAV
-// -----------------------
-function openChat() { window.location.href = '/chat.html'; }
+/* --- Chat --- */
+function openChat(){window.location.href='/chat.html';}
 
-// -----------------------
-// INITIAL LOAD
-// -----------------------
+/* --- SPA Page Load --- */
+function loadPage(page){ window.location.href = '/' + page; }
+
+/* --- Init --- */
 loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 
 </body>
 </html>
-
