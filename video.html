@@ -95,7 +95,7 @@
         const headers = {};
         if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
 
-        const res = await fetch(`/.netlify/functions/profile-video?email=${encodeURIComponent(userEmail)}`, {
+        const res = await fetch(`/.netlify/functions/profile-videos?email=${encodeURIComponent(userEmail)}`, {
           method: 'GET',
           headers,
           credentials: 'same-origin'
