@@ -38,6 +38,7 @@
       align-items: center;
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
       transition: transform 0.3s, box-shadow 0.3s;
+      position: relative;
     }
 
     .media-card:hover {
@@ -48,6 +49,7 @@
     .media-card img.logo {
       width: 100%;
       object-fit: cover;
+      display: block;
     }
 
     .media-card span {
@@ -59,7 +61,6 @@
     audio, video {
       width: 100%;
       border-radius: 0 0 12px 12px;
-      margin-bottom: 0;
       background-color: #000;
     }
 
@@ -139,7 +140,7 @@
 
           const coverSrc = file.cover_url || DEFAULT_COVER;
 
-          // Large cover image
+          // Cover image
           const logo = document.createElement('img');
           logo.src = coverSrc;
           logo.alt = file.name;
@@ -157,9 +158,24 @@
             mediaElement.src = file.download_url;
           } else if (file.name.toLowerCase().endsWith('.mp4')) {
             mediaElement = document.createElement('video');
-            mediaElement.controls = true;
             mediaElement.src = file.download_url;
             mediaElement.poster = coverSrc;
+            mediaElement.muted = true;
+            mediaElement.preload = 'none';
+            mediaElement.style.display = 'none'; // hidden initially
+
+            // Hover preview
+            card.addEventListener('mouseenter', () => {
+              logo.style.display = 'none';
+              mediaElement.style.display = 'block';
+              mediaElement.play();
+            });
+            card.addEventListener('mouseleave', () => {
+              mediaElement.pause();
+              mediaElement.currentTime = 0;
+              mediaElement.style.display = 'none';
+              logo.style.display = 'block';
+            });
           }
 
           if (mediaElement) card.appendChild(mediaElement);
