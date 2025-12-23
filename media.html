@@ -99,11 +99,7 @@
   </div>
 
   <script>
-    const logoMap = {
-      'war': 'assets/war.png',
-      'horror': 'assets/horror.png',
-      'babyyoda': 'assets/babyyoda.png'
-    };
+    const DEFAULT_COVER = 'assets/default.png'; // placeholder if no matching PNG exists
 
     async function fetchMedia() {
       try {
@@ -123,22 +119,13 @@
           const card = document.createElement('div');
           card.className = 'media-card';
 
-          // Determine logo based on file name
-          let logoSrc = null;
-          for (const key in logoMap) {
-            if (file.name.toLowerCase().includes(key)) {
-              logoSrc = logoMap[key];
-              break;
-            }
-          }
-
-          if (logoSrc) {
-            const logo = document.createElement('img');
-            logo.src = logoSrc;
-            logo.alt = file.name;
-            logo.className = 'logo';
-            card.appendChild(logo);
-          }
+          // Use cover art if available; otherwise use default
+          const coverSrc = file.cover_url || DEFAULT_COVER;
+          const logo = document.createElement('img');
+          logo.src = coverSrc;
+          logo.alt = file.name;
+          logo.className = 'logo';
+          card.appendChild(logo);
 
           const nameSpan = document.createElement('span');
           nameSpan.textContent = file.name;
