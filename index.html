@@ -42,59 +42,238 @@
 </script>
 
 <style>
-/* Layout */
-body { display: flex; margin: 0; font-family: Arial, sans-serif; height: 100vh; }
+/* Reset & layout */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  height: 100%;
+  -webkit-text-size-adjust: 100%; /* Prevent iOS font scaling */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+body {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  background: #f9fafc;
+}
 
 /* Sidebar */
-#sidebar { width: 250px; background-color: #1e1e1e; color: #fff; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-#sidebar ul { list-style: none; padding: 0; margin: 0; }
-#sidebar li { margin-bottom: 10px; }
-#sidebar a { color: #fff; text-decoration: none; display: block; padding: 8px 12px; border-radius: 5px; transition: background 0.2s; }
-#sidebar a:hover { background-color: #333; }
+#sidebar {
+  width: 250px;
+  background-color: #1e1e1e;
+  color: #fff;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+#sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#sidebar li {
+  margin-bottom: 10px;
+}
+
+#sidebar a {
+  color: #fff;
+  text-decoration: none;
+  display: block;
+  padding: 10px 14px;
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+#sidebar a:hover {
+  background-color: #333;
+}
 
 /* Main content */
-#mainContent { flex-grow: 1; overflow-y: auto; padding: 20px; background: #f9fafc; }
+#mainContent {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+  min-width: 0; /* Fix flexbox overflow on mobile */
+}
 
 /* Profile header */
-.profile-header { display:flex; align-items:center; gap:15px; margin-bottom:20px; }
-.profile-header img { width:50px; height:50px; border-radius:50%; object-fit:cover; }
-.online { color: lime; font-weight: bold; }
-.offline { color: gray; font-weight: bold; }
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.profile-header img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.online {
+  color: lime;
+  font-weight: bold;
+}
+
+.offline {
+  color: gray;
+  font-weight: bold;
+}
 
 /* Forms and buttons */
-form { max-width: 500px; margin-bottom: 30px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-input, textarea, select, button { width:100%; margin-bottom:15px; padding:10px; font-size:14px; border-radius:5px; border:1px solid #ccc; }
-button { background:#007bff; color:white; border:none; cursor:pointer; }
-button:hover { background:#0056b3; }
+form {
+  max-width: 500px;
+  margin-bottom: 30px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+input, textarea, select, button {
+  width: 100%;
+  margin-bottom: 15px;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  min-height: 44px; /* Touch-friendly */
+}
+
+button:hover {
+  background: #0056b3;
+}
 
 /* Output messages */
-.output { margin-top:15px; font-family:monospace; padding:10px; border-radius:6px; }
-.output.success { background:#e6ffed; color:#256d1b; border:1px solid #8dd48a; }
-.output.error { background:#ffe6e6; color:#a12626; border:1px solid #f5a3a3; }
+.output {
+  margin-top: 15px;
+  font-family: monospace;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.output.success {
+  background: #e6ffed;
+  color: #256d1b;
+  border: 1px solid #8dd48a;
+}
+
+.output.error {
+  background: #ffe6e6;
+  color: #a12626;
+  border: 1px solid #f5a3a3;
+}
 
 /* Friend requests */
-#incomingRequests div { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:5px; background:#fff; border-radius:5px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-#incomingRequests div button { margin-left:5px; padding:3px 8px; }
+#incomingRequests div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
 
-/* iframe */
-#iframeContainer { margin-top:20px; height:500px; border:1px solid #ccc; }
+#incomingRequests div button {
+  margin-top: 5px;
+  padding: 6px 12px;
+}
+
+/* Iframe */
+#iframeContainer {
+  width: 100%;
+  max-width: 100%;
+  height: 400px; /* Responsive for mobile */
+  border: 1px solid #ccc;
+}
 
 /* Chat bubble */
 #chatBubble {
-  position: fixed; bottom:20px; right:20px; width:64px; height:64px; border-radius:50%; background:#007bff; color:white;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:9999;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #007bff;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 9999;
 }
-#chatBubble span { font-size:10px; margin-top:2px; max-width:55px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#chatBadge { position:absolute; top:6px; right:6px; background:red; color:white; font-size:10px; padding:2px 6px; border-radius:50%; display:none; }
 
-@media (max-width:768px){
-  body { flex-direction: column; }
-  #sidebar { width:100%; height:auto; }
-  #mainContent { padding:10px; }
+#chatBubble span {
+  font-size: 10px;
+  margin-top: 2px;
+  max-width: 55px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#chatBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: red;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  display: none;
+}
+
+/* Images responsive */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive for mobile */
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+  }
+  #sidebar {
+    width: 100%;
+    height: auto;
+  }
+  #mainContent {
+    padding: 10px;
+  }
+  #iframeContainer {
+    height: 300px;
+  }
+  #chatBubble {
+    width: 56px;
+    height: 56px;
+    bottom: 15px;
+    right: 15px;
+  }
 }
 </style>
-</head>
-<body>
 
 <!-- Sidebar -->
 <div id="sidebar">
@@ -371,6 +550,7 @@ loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
+
 
 
 
