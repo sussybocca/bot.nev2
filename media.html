@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: white;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    a {
+      text-decoration: none;
+      color: #0077cc;
+    }
+    audio, video {
+      max-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Media Files</h1>
+  <ul id="media-list">
+    <li>Loading...</li>
+  </ul>
+
+  <script>
+    async function fetchMedia() {
+      try {
+        const res = await fetch('/.netlify/functions/medialist'); // Netlify function path
+        if (!res.ok) throw new Error('Failed to fetch media files');
+
+        const data = await res.json();
+        const list = document.getElementById('media-list');
+        list.innerHTML = ''; // Clear loading text
+
+        if (data.mediaFiles.length === 0) {
+          list.innerHTML = '<li>No media files found.</li>';
+          return;
+        }
+
+        data.mediaFiles.forEach(file => {
+          const li = document.createElement('li');
+          const name = document.createElement('span');
+          name.textContent = file.name;
+
+          let mediaElement;
+          if (file.name.toLowerCase().endsWith('.mp3')) {
+            mediaElement = document.createElement('audio');
+            mediaElement.controls = true;
+            mediaElement.src = file.download_url;
+          } else if (file.name.toLowerCase().endsWith('.mp4')) {
+            mediaElement = document.createElement('video');
+            mediaElement.controls = true;
+            mediaElement.src = file.download_url;
+          }
+
+          const link = document.createElement('a');
+          link.href = file.download_url;
+          link.textContent = 'Download';
+          link.target = '_blank';
+
+          li.appendChild(name);
+          if (mediaElement) li.appendChild(mediaElement);
+          li.appendChild(link);
+
+          list.appendChild(li);
+        });
+      } catch (err) {
+        document.getElementById('media-list').innerHTML = `<li>Error: ${err.message}</li>`;
+      }
+    }
+
+    fetchMedia();
+  </script>
+</body>
+</html>
