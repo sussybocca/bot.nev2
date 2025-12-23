@@ -2,32 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Upload & View Videos</title>
+  <title>User Profile & Videos</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 2rem; background: #121212; color: #fff; }
     h1 { color: #fff; }
-    input, button { padding: 0.5rem; margin: 0.5rem 0; }
-    progress { width: 100%; height: 20px; margin-top: 1rem; }
-    #result, #videosList { margin-top: 1rem; word-break: break-all; }
-    .video-item { margin-bottom: 2rem; background: #1f1f1f; padding: 1rem; border-radius: 10px; }
-    video { width: 100%; border-radius: 10px; background-color: black; display: block; }
+
+    /* Profile section */
+    #profile { display: flex; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+    #profile img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
+    #profile div { display: flex; flex-direction: column; }
+
+    /* Video gallery */
+    #videosList { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+    .video-item { position: relative; border-radius: 10px; overflow: hidden; background: #1f1f1f; cursor: pointer; }
+    .video-item video { width: 100%; border-radius: 10px; background-color: black; transition: transform 0.3s ease; }
+    .video-item:hover video { transform: scale(1.05); }
+    .video-info { position: absolute; bottom: 0; left: 0; width: 100%; padding: 0.5rem; background: rgba(0,0,0,0.5); color: #fff; font-size: 0.85rem; }
+
     .shareBtn { margin-top: 0.5rem; padding: 5px 10px; border: none; background-color: #0077cc; color: #fff; border-radius: 5px; cursor: pointer; }
     .shareBtn:hover { background-color: #005fa3; }
+
+    /* Modal player */
+    #videoModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); justify-content:center; align-items:center; z-index:999; }
+    #videoModal video { max-width:90%; max-height:90%; border-radius:10px; }
+    #videoModal button { position:absolute; top:20px; right:20px; padding:10px 15px; font-size:16px; cursor:pointer; }
+
+    /* Upload section */
+    #uploadSection { margin-bottom: 2rem; }
+    input, button { padding: 0.5rem; margin: 0.5rem 0; }
+    progress { width: 100%; height: 20px; margin-top: 1rem; }
+    #result { margin-top: 1rem; word-break: break-all; }
   </style>
 </head>
 <body>
-  <h1>Upload MP4 Video</h1>
-  <input type="file" id="videoFile" accept=".mp4,video/mp4">
-  <br>
-  <input type="file" id="coverFile" accept="image/*">
-  <br>
-  <button id="uploadBtn">Upload</button>
-  <progress id="progressBar" value="0" max="100" style="display:none;"></progress>
-  <div id="result"></div>
 
-  <h1>View Uploaded Videos</h1>
-  <button id="viewBtn">Load Videos</button>
+  <!-- Profile info -->
+  <div id="profile">
+    <img id="avatar" src="assets/default.png" alt="Avatar">
+    <div>
+      <span id="username"></span>
+      <span id="email"></span>
+    </div>
+  </div>
+
+  <!-- Upload section (only for own profile) -->
+  <div id="uploadSection" style="display:none;">
+    <h1>Upload MP4 Video</h1>
+    <input type="file" id="videoFile" accept=".mp4,video/mp4">
+    <br>
+    <input type="file" id="coverFile" accept="image/*">
+    <br>
+    <button id="uploadBtn">Upload</button>
+    <progress id="progressBar" value="0" max="100" style="display:none;"></progress>
+    <div id="result"></div>
+  </div>
+
+  <h1>User Videos</h1>
   <div id="videosList"></div>
+
+  <!-- Modal Player -->
+  <div id="videoModal">
+    <video id="modalVideo" controls></video>
+    <button onclick="closeModal()">X</button>
+  </div>
 
   <script>
     function getSessionCookie() {
@@ -36,12 +73,90 @@
       return sessionCookie ? sessionCookie.split('=')[1] : null;
     }
 
+    function openModal(videoUrl) {
+      const modal = document.getElementById('videoModal');
+      const modalVideo = document.getElementById('modalVideo');
+      modalVideo.src = videoUrl;
+      modal.style.display = 'flex';
+      modalVideo.play();
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('videoModal');
+      const modalVideo = document.getElementById('modalVideo');
+      modalVideo.pause();
+      modalVideo.src = '';
+      modal.style.display = 'none';
+    }
+
+    async function loadUserProfile(userEmail) {
+      try {
+        const sessionToken = getSessionCookie();
+        const headers = {};
+        if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
+
+        const res = await fetch(`/.netlify/functions/profile-video?email=${encodeURIComponent(userEmail)}`, {
+          method: 'GET',
+          headers,
+          credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('Failed to fetch profile');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        document.getElementById('avatar').src = data.user.avatar_url || 'assets/default.png';
+        document.getElementById('username').innerText = data.user.username || 'Unknown';
+        document.getElementById('email').innerText = data.user.email || '';
+
+        // Show upload section only if viewing own profile
+        if (sessionToken && sessionToken === userEmail) {
+          document.getElementById('uploadSection').style.display = 'block';
+        }
+
+        loadUserVideos(data.videos || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function loadUserVideos(videos) {
+      const videosList = document.getElementById('videosList');
+      if (!videos.length) { videosList.innerText = 'No videos uploaded yet.'; return; }
+
+      videosList.innerHTML = '';
+      videos.forEach(video => {
+        const div = document.createElement('div');
+        div.className = 'video-item';
+        div.innerHTML = `
+          <video muted preload="metadata" poster="${video.coverUrl}">
+            <source src="${video.videoUrl}" type="video/mp4">
+          </video>
+          <div class="video-info">
+            Uploaded: ${video.created_at ? new Date(video.created_at).toLocaleString() : 'Unknown'}
+            <br><button class="shareBtn">Share Video</button>
+          </div>
+        `;
+        videosList.appendChild(div);
+
+        const vid = div.querySelector('video');
+        div.addEventListener('mouseenter', () => vid.play());
+        div.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
+        div.addEventListener('click', () => openModal(video.videoUrl));
+
+        const shareBtn = div.querySelector('.shareBtn');
+        shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(video.videoUrl)
+            .then(() => alert('Video URL copied!'))
+            .catch(() => alert('Failed to copy URL.'));
+        });
+      });
+    }
+
     document.getElementById('uploadBtn').addEventListener('click', async () => {
       const videoFile = document.getElementById('videoFile').files[0];
       const coverFile = document.getElementById('coverFile').files[0];
-
-      if (!videoFile || !coverFile) { alert('Please select both video and cover art.'); return; }
-      if (!videoFile.name.toLowerCase().endsWith('.mp4')) { alert('Only MP4 files are allowed.'); return; }
+      if (!videoFile || !coverFile) return alert('Please select both video and cover.');
 
       const progressBar = document.getElementById('progressBar');
       progressBar.style.display = 'block';
@@ -56,26 +171,24 @@
         const headers = {};
         if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
 
-        const response = await fetch('/.netlify/functions/upload-video', {
+        const res = await fetch('/.netlify/functions/upload-video', {
           method: 'POST',
           body: formData,
           headers,
           credentials: 'same-origin'
         });
+        if (!res.ok) { const text = await res.text(); return document.getElementById('result').innerText = 'Upload failed: ' + text; }
 
-        if (!response.ok) {
-          const text = await response.text();
-          document.getElementById('result').innerText = 'Upload failed: ' + text;
-          return;
-        }
-
-        const data = await response.json();
+        const data = await res.json();
         document.getElementById('result').innerHTML = `
-          Upload successful! <br>
+          Upload successful!<br>
           <video controls poster="${data.coverUrl}">
             <source src="${data.videoUrl}" type="video/mp4">
           </video>
         `;
+
+        // Reload user's videos after upload
+        loadUserProfile(data.userEmail || '');
       } catch (err) {
         console.error(err);
         document.getElementById('result').innerText = 'Upload failed: ' + err.message;
@@ -84,43 +197,9 @@
       }
     });
 
-    document.getElementById('viewBtn').addEventListener('click', async () => {
-      const videosList = document.getElementById('videosList');
-      videosList.innerHTML = 'Loading videos...';
-
-      try {
-        const response = await fetch('/.netlify/functions/view-videos', { method: 'GET', credentials: 'same-origin' });
-        if (!response.ok) { const text = await response.text(); videosList.innerText = 'Failed to load videos: ' + text; return; }
-
-        const videos = await response.json();
-        if (!videos.length) { videosList.innerText = 'No videos uploaded yet.'; return; }
-
-        videosList.innerHTML = '';
-        videos.forEach(video => {
-          const div = document.createElement('div');
-          div.className = 'video-item';
-          div.innerHTML = `
-            <p>User: ${video.user ? video.user.email : 'Unknown'}</p>
-            <p>Uploaded: ${video.uploaded_at ? new Date(video.uploaded_at).toLocaleString() : 'Unknown'}</p>
-            <video controls poster="${video.coverUrl}">
-              <source src="${video.videoUrl}" type="video/mp4">
-            </video>
-            <button class="shareBtn">Share Video</button>
-          `;
-          videosList.appendChild(div);
-
-          const shareBtn = div.querySelector('.shareBtn');
-          shareBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(video.videoUrl)
-              .then(() => alert('Video URL copied to clipboard!'))
-              .catch(() => alert('Failed to copy URL.'));
-          });
-        });
-      } catch (err) {
-        console.error(err);
-        videosList.innerText = 'Failed to load videos: ' + err.message;
-      }
-    });
+    // Load profile based on URL param
+    const userEmail = new URLSearchParams(window.location.search).get('email');
+    if (userEmail) loadUserProfile(userEmail);
   </script>
 </body>
 </html>
