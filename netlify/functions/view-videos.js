@@ -1,4 +1,3 @@
-// netlify/functions/view-videos.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -18,50 +17,54 @@ export const handler = async () => {
 
     const videosWithUser = await Promise.all(
       files.map(async (file) => {
-        // Create signed URL for the video
-        const { data: signedUrlData, error: signedUrlError } = await supabase
-          .storage
-          .from('videos')
-          .createSignedUrl(file.name, 3600); // 1 hour expiry
-
-        if (signedUrlError) return null;
-
         // Get video metadata from videos table
         const { data: videoRecord, error: videoError } = await supabase
           .from('videos')
-          .select('user_id, created_at')
+          .select('user_id, created_at, cover_url')
           .eq('video_url', file.name)
           .maybeSingle();
 
         if (videoError || !videoRecord) return null;
 
+        // Create signed URL for the video
+        const { data: signedVideoData, error: signedVideoError } = await supabase
+          .storage
+          .from('videos')
+          .createSignedUrl(file.name, 3600);
+
+        if (signedVideoError) return null;
+
+        // Create signed URL for cover art if exists
+        let coverUrl = null;
+        if (videoRecord.cover_url) {
+          const { data: signedCoverData, error: signedCoverError } = await supabase
+            .storage
+            .from('covers')
+            .createSignedUrl(videoRecord.cover_url, 3600);
+          if (!signedCoverError) coverUrl = signedCoverData.signedUrl;
+        }
+
         // Fetch user info from users table
-        const { data: userData, error: userError } = await supabase
+        const { data: userData } = await supabase
           .from('users')
           .select('id, email')
           .eq('id', videoRecord.user_id)
           .maybeSingle();
 
-        // Safely handle returned user
         const user = userData ? { id: userData.id, email: userData.email } : null;
-
-        // Convert created_at string to ISO string to avoid Invalid Date
-        const uploaded_at = videoRecord.created_at
-          ? new Date(videoRecord.created_at).toISOString()
-          : null;
 
         return {
           name: file.name,
           size: file.size,
-          uploaded_at,
-          videoUrl: signedUrlData.signedUrl,
+          uploaded_at: videoRecord.created_at ? new Date(videoRecord.created_at).toISOString() : null,
+          videoUrl: signedVideoData.signedUrl,
+          coverUrl,
           user
         };
       })
     );
 
-    // Remove any nulls in case some lookups failed
-    const filteredVideos = videosWithUser.filter(v => v);
+    const filteredVideos = videosWithUser.filter(v => v); // remove any nulls
 
     return {
       statusCode: 200,
