@@ -5,29 +5,46 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function generateExploreHTML() {
+async function generateExploreHTML(cookies = {}) {
+  const session_token = cookies['__Host-session_secure'] || cookies['session_token'];
   const { data: bots, error } = await supabase.from('bots').select('*');
   if (error) return `<h1 style="color:red;">Error: ${error.message}</h1>`;
 
   let botHTML = '';
   bots.forEach((bot, index) => {
-    const safeDesc = bot.description.replace(/"/g, '&quot;');
     const voice = bot.voice_id || 'en_us_general';
     const fbx = bot.fbx_model_id || 'N/A';
     const paidLink = bot.paid_link
       ? `<a href="${bot.paid_link}" target="_blank" style="background:#28a745;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;">Buy on Gumroad</a>`
       : '';
 
+    const personality = bot.personality ? JSON.stringify(bot.personality) : '{}';
+    const emotional_state = bot.emotional_state ? JSON.stringify(bot.emotional_state) : '{}';
+    const goals = bot.goals ? JSON.stringify(bot.goals) : '[]';
+    const expressions = bot.expressions ? JSON.stringify(bot.expressions) : '[]';
+    const memories = bot.memories ? JSON.stringify(bot.memories) : '[]';
+    const dialogue_state = bot.dialogue_state ? JSON.stringify(bot.dialogue_state) : '{}';
+    const dialogue = bot.dialogue || '';
+    const editable = session_token && session_token === bot.api_key; // simple check for creator
+
     botHTML += `
-      <div class="bot" data-description="${safeDesc}" data-voice="${voice}" id="bot-${index}">
-        <h2>${bot.name}</h2>
+      <div class="bot" 
+           data-voice="${voice}" 
+           data-dialogue="${dialogue.replace(/"/g,'&quot;')}"
+           data-expressions='${expressions}'
+           data-memories='${memories}'
+           data-dialogue-state='${dialogue_state}'
+           data-personality='${personality}'
+           data-emotional-state='${emotional_state}'
+           id="bot-${index}">
+        <h2>${bot.name}${editable ? ' (Editable)' : ''}</h2>
         <p>${bot.description}</p>
         <p><strong>Voice:</strong> ${voice} | <strong>FBX:</strong> ${fbx}</p>
         <div class="fbx-preview">${fbx}</div>
         ${paidLink}
         <br><br>
-        <input type="text" id="input-${index}" placeholder="Say something..." />
-        <button onclick="sendMessage(${index})">Send</button>
+        <input type="text" id="input-${index}" placeholder="Say something..." ${editable ? '' : 'disabled'} />
+        <button onclick="sendMessage(${index})" ${editable ? '' : 'disabled'}>Send</button>
         <div id="chat-${index}" style="margin-top:5px; background:#eee; padding:5px; border-radius:5px; min-height:30px;"></div>
       </div>
     `;
@@ -47,6 +64,7 @@ async function generateExploreHTML() {
       input { padding:5px; width:70%; margin-right:5px; }
       button { padding:5px 10px; margin-right:5px; }
       .fbx-preview { width:100px; height:100px; background:#ddd; display:inline-block; margin-right:5px; text-align:center; line-height:100px; }
+      p { margin: 5px 0; word-break: break-word; }
     </style>
   </head>
   <body>
@@ -62,7 +80,6 @@ async function generateExploreHTML() {
         if (typeof eSpeakNG !== 'undefined') {
           tts = new eSpeakNG('/espeakng-worker.js', () => console.log('eSpeakNG ready'));
         }
-
         availableVoices = window.speechSynthesis.getVoices();
         if (!availableVoices.length) {
           window.speechSynthesis.onvoiceschanged = () => {
@@ -106,15 +123,28 @@ async function generateExploreHTML() {
         const msg = input.value.trim();
         if (!msg) return;
 
-        const description = botDiv.dataset.description;
-        const botVoiceId = botDiv.dataset.voice;
-        const reply = \`You said: '\${msg}'. \${description}\`;
+        let dialogue = botDiv.dataset.dialogue || "Hello!";
+        let expressions = JSON.parse(botDiv.dataset.expressions || '[]');
+        let memories = JSON.parse(botDiv.dataset.memories || '[]');
+        let dialogue_state = JSON.parse(botDiv.dataset.dialogueState || '{}');
+
+        // Add user input to memories
+        memories.push({ user: "You", fact: msg, importance: 0.5 });
+        memories = memories.slice(-100);
+
+        // Generate bot reply: start with dialogue + simple expressions
+        let reply = dialogue;
+        if (expressions.length) reply += " [" + expressions.join(", ") + "]";
+        reply += " You said: '" + msg + "'";
 
         chat.innerHTML += \`<div><strong>You:</strong> \${msg}</div>\`;
         chat.innerHTML += \`<div><strong>Bot:</strong> \${reply}</div>\`;
 
-        speak(reply, botVoiceId);
+        speak(reply, botDiv.dataset.voice);
         input.value = '';
+
+        // Update botDiv dataset for session memory (optional)
+        botDiv.dataset.memories = JSON.stringify(memories);
       }
     </script>
   </body>
@@ -123,8 +153,16 @@ async function generateExploreHTML() {
 }
 
 export async function handler(event, context) {
+  const cookies = {};
+  if (event.headers.cookie) {
+    event.headers.cookie.split(';').forEach(c => {
+      const [k,v] = c.trim().split('=');
+      cookies[k] = v;
+    });
+  }
+
   try {
-    const html = await generateExploreHTML();
+    const html = await generateExploreHTML(cookies);
     return { statusCode: 200, headers:{ "Content-Type":"text/html"}, body: html };
   } catch (err) {
     console.error(err);
