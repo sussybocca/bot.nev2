@@ -1,17 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
-import { voices } from './voices.js'; // your pre-defined voices array
+import { voices } from './voices.js'; // pre-defined voices array
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+async function validateSession(session_token) {
+  if (!session_token) return null;
+
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('user_email, expires_at')
+    .eq('session_token', session_token)
+    .maybeSingle();
+
+  if (!session) return null;
+  if (new Date(session.expires_at) < new Date()) return null;
+
+  return session.user_email;
+}
+
 async function generateExploreHTML(cookies = {}) {
   const session_token = cookies['__Host-session_secure'] || cookies['session_token'];
+  const user_email = await validateSession(session_token);
+
   const { data: bots, error } = await supabase.from('bots').select('*');
   if (error) return `<h1 style="color:red;">Error: ${error.message}</h1>`;
 
   let botHTML = '';
+
   bots.forEach((bot, index) => {
+    const isCreator = user_email && user_email === bot.owner_email; // assume bots have owner_email column
     const voice = bot.voice_id || 'en_us_general';
     const fbx = bot.fbx_model_id || 'N/A';
     const paidLink = bot.paid_link
@@ -25,7 +44,6 @@ async function generateExploreHTML(cookies = {}) {
     const memories = bot.memories ? JSON.stringify(bot.memories) : '[]';
     const dialogue_state = bot.dialogue_state ? JSON.stringify(bot.dialogue_state) : '{}';
     const dialogue = bot.dialogue || '';
-    const editable = session_token && session_token === bot.api_key; // simple check for creator
 
     botHTML += `
       <div class="bot" 
@@ -36,15 +54,17 @@ async function generateExploreHTML(cookies = {}) {
            data-dialogue-state='${dialogue_state}'
            data-personality='${personality}'
            data-emotional-state='${emotional_state}'
+           data-owner="${bot.owner_email}"
            id="bot-${index}">
-        <h2>${bot.name}${editable ? ' (Editable)' : ''}</h2>
+        <h2>${bot.name}${isCreator ? ' (Editable)' : ''}</h2>
         <p>${bot.description}</p>
         <p><strong>Voice:</strong> ${voice} | <strong>FBX:</strong> ${fbx}</p>
         <div class="fbx-preview">${fbx}</div>
         ${paidLink}
         <br><br>
-        <input type="text" id="input-${index}" placeholder="Say something..." ${editable ? '' : 'disabled'} />
-        <button onclick="sendMessage(${index})" ${editable ? '' : 'disabled'}>Send</button>
+
+        <input type="text" id="input-${index}" placeholder="Say something..." />
+        <button onclick="sendMessage(${index})">Send</button>
         <div id="chat-${index}" style="margin-top:5px; background:#eee; padding:5px; border-radius:5px; min-height:30px;"></div>
       </div>
     `;
@@ -108,9 +128,7 @@ async function generateExploreHTML(cookies = {}) {
         if (tts) {
           try {
             await tts.speak(text, { voice: botVoiceId });
-          } catch(err) {
-            console.error('eSpeakNG TTS error:', err);
-          }
+          } catch(err) { console.error('eSpeakNG TTS error:', err); }
         } else {
           console.warn('No TTS available for voice:', botVoiceId);
         }
@@ -128,11 +146,11 @@ async function generateExploreHTML(cookies = {}) {
         let memories = JSON.parse(botDiv.dataset.memories || '[]');
         let dialogue_state = JSON.parse(botDiv.dataset.dialogueState || '{}');
 
-        // Add user input to memories
+        // Update session memory locally
         memories.push({ user: "You", fact: msg, importance: 0.5 });
         memories = memories.slice(-100);
 
-        // Generate bot reply: start with dialogue + simple expressions
+        // Construct reply from dialogue + expressions
         let reply = dialogue;
         if (expressions.length) reply += " [" + expressions.join(", ") + "]";
         reply += " You said: '" + msg + "'";
@@ -143,7 +161,7 @@ async function generateExploreHTML(cookies = {}) {
         speak(reply, botDiv.dataset.voice);
         input.value = '';
 
-        // Update botDiv dataset for session memory (optional)
+        // Update memory in dataset
         botDiv.dataset.memories = JSON.stringify(memories);
       }
     </script>
