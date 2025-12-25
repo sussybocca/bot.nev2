@@ -90,7 +90,7 @@ function generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey }
 }
 
 // ---------------------- Create Bot ----------------------
-async function createBot({ name, description, voice_id, fbx_model_id, paid_link }, ip) {
+async function createBot({ name, description, voice_id, fbx_model_id, paid_link, personality, emotional_state, goals, expressions, dialogue }, ip) {
 
   if (!rateLimit(ip)) return { error: "Too many requests" };
   if (![name, description, voice_id, fbx_model_id].every(isValidInput)) return { error: "Invalid input" };
@@ -103,16 +103,28 @@ async function createBot({ name, description, voice_id, fbx_model_id, paid_link 
   const files = generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey });
   if (moderateContent(files)) return { error: "Harmful content detected" };
 
+  // Default structures if not provided
+  personality = personality || { tone: "friendly", traits: ["curious"], values: ["honesty"], boundaries: ["no violence"] };
+  emotional_state = emotional_state || { mood: "curious", trust: 0.5, stress: 0.2 };
+  goals = Array.isArray(goals) && goals.length ? goals : [{ goal: "Help user", priority: 1 }];
+  expressions = Array.isArray(expressions) && expressions.length ? expressions : [];
+  dialogue = dialogue || "";
+
   const bot = {
-    name, description, files,
+    name,
+    description,
+    files,
     api_key: apiKey,
-    voice_id, fbx_model_id,
+    voice_id,
+    fbx_model_id,
     paid_link: paid_link || null,
     created_at: new Date().toISOString(),
 
-    personality: { tone: "friendly", traits: ["curious"], values: ["honesty"], boundaries: ["no violence"] },
-    emotional_state: { mood: "curious", trust: 0.5, stress: 0.2 },
-    goals: [{ goal: "Help user", priority: 1 }],
+    personality,
+    emotional_state,
+    goals,
+    expressions,
+    dialogue,
     memories: [],
     dialogue_state: {},
 
