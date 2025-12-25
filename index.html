@@ -273,85 +273,43 @@ img { max-width: 100%; height: auto; }
 <!-- Sidebar -->
 <div id="sidebar">
   <ul>
-    <li><a href="create.html?user=%40scoobydo">⚙️ Create a Bot</a></li>
-    <li><a href="marketplace.html?character=scoobydo">🛒 Marketplace</a></li>
-    <li><a href="explore.html?user=%40scoobydo">🔍 Explore Bots</a></li>
-    <li><a href="index.html?user=%40scoobydo">🏠 Home</a></li>
-    <li><a href="login.html?redirect=user=%40scoobydo">🔗 Login</a></li>
+    <li><a href="/create.html?user=@scoobydo">⚙️ Create a Bot</a></li>
+    <li><a href="/marketplace.html?character=scoobydo">🛒 Marketplace</a></li>
+    <li><a href="/explore.html?user=@scoobydo">🔍 Explore Bots</a></li>
+    <li><a href="/index.html?user=@scoobydo">🏠 Home</a></li>
+    <li><a href="/login.html?redirect=user=@scoobydo">🔗 Login</a></li>
     <li><a href="signup.html">Signup</a></li>
-    <li><a href="page/index.html?ref=%40scoobydoo">🤣 boteos</a></li>
-    <li><a href="dialogue.html?ref=%40fortniteCod6">🙇🧏‍♀️🧏‍♂️🧏 dialogue</a></li>
-    <li><a href="email.html?ref=%40dude">🚓🚕🛺 email</a></li>
-    <li><a href="fullSettings.html?ref=%40nathenisdiddy">🎇🧨✨🎉 nateyourdiddy</a></li>
-    <li><a href="site-builder.html?ref=%40IsaiahIsStraight">🎇🧨✨🎉 site-builder</a></li>
-    <li><a href="recovery-login.html?ref=%40recovery-login">🔗 recovery-login</a></li>
-    <li><a href="video.html?ref=%40video-page">🎇🧨✨🎉 video-page</a></li>
-    <li><a href="media.html?ref=%40media-page">🎧💽📀🔊 media-page</a></li>
+    <li><a href="page/index.html?ref=@scoobydoo">🤣 boteos</a></li>
+    <li><a href="dialogue.html?ref=@fortniteCod6">🙇🧏‍♀️🧏‍♂️🧏 dialogue</a></li>
+    <li><a href="email.html?ref=@dude">🚓🚕🛺 email</a></li>
+    <li><a href="fullSettings.html?ref=@nathenisdiddy">🎇🧨✨🎉 nateyourdiddy</a></li>
+    <li><a href="site-builder.html?ref=@IsaiahIsStraight">🎇🧨✨🎉 site-builder</a></li>
+    <li><a href="recovery-login.html?ref=@recovery-login">🔗 recovery-login</a></li>
+    <li><a href="video.html?ref=@video-page">🎇🧨✨🎉 video-page</a></li>
+    <li><a href="media.html?ref=@media-page">🎧💽📀🔊 media-page</a></li>
   </ul>
 </div>
 
+<!-- Main content -->
 <div id="mainContent">
   <div class="profile-header" id="profile"></div>
-  <h1>🤖 Create Your AI Bot</h1>
+  <h1>🤖 Create Your Bot</h1>
 
   <form id="botForm">
-    <!-- Bot basic info -->
     <input type="text" id="botName" placeholder="Bot Name" required />
     <textarea id="description" placeholder="Describe your bot..." required></textarea>
 
-    <!-- Voice & FBX -->
     <label for="voiceSelect">Select Voice:</label>
-    <select id="voiceSelect" required>
-      <option value="">Loading voices...</option>
-    </select>
+    <select id="voiceSelect" required><option value="">Loading voices...</option></select>
 
     <label for="fbxSelect">Select FBX Model:</label>
-    <select id="fbxSelect" required>
-      <option value="">Choose FBX Model</option>
-    </select>
+    <select id="fbxSelect" required><option value="">Choose FBX Model</option></select>
 
-    <!-- Paid link -->
     <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link for paid model" />
-
-    <!-- Personality -->
-    <fieldset>
-      <legend>Personality Traits</legend>
-      <label><input type="text" id="personalityTone" placeholder="Tone (e.g., friendly)" /></label>
-      <label><input type="text" id="personalityTraits" placeholder="Traits (comma separated)" /></label>
-      <label><input type="text" id="personalityValues" placeholder="Values (comma separated)" /></label>
-      <label><input type="text" id="personalityBoundaries" placeholder="Boundaries (comma separated)" /></label>
-    </fieldset>
-
-    <!-- Emotional State -->
-    <fieldset>
-      <legend>Emotional State</legend>
-      <label>Mood: <input type="text" id="mood" placeholder="e.g., curious" /></label>
-      <label>Trust: <input type="number" id="trust" min="0" max="1" step="0.01" value="0.5" /></label>
-      <label>Stress: <input type="number" id="stress" min="0" max="1" step="0.01" value="0.2" /></label>
-    </fieldset>
-
-    <!-- Hugging Face AI Settings -->
-    <fieldset>
-      <legend>AI / Hugging Face</legend>
-      <label>Hugging Face Token: <input type="text" id="hfToken" placeholder="Optional" /></label>
-      <label>Initial Prompt / Context:</label>
-      <textarea id="initialPrompt" placeholder="Initial instructions for your bot"></textarea>
-    </fieldset>
-
-    <!-- Expressions -->
-    <fieldset>
-      <legend>Expressions</legend>
-      <label>Expression 1: <input type="text" id="expression1" placeholder="e.g., happy" /></label>
-      <label>Expression 2: <input type="text" id="expression2" placeholder="e.g., sad" /></label>
-    </fieldset>
-
     <button type="submit">Create Bot</button>
   </form>
 
   <div id="output" class="output"></div>
-
-  <!-- Optional: AI preview -->
-  <div id="botPreview" style="margin-top:20px;"></div>
 
   <h2>Incoming Friend Requests</h2>
   <div id="incomingRequests"></div>
@@ -543,139 +501,50 @@ const output = document.getElementById('output');
 const voiceSelect = document.getElementById('voiceSelect');
 const fbxSelect = document.getElementById('fbxSelect');
 
-// Load voices from backend
 async function loadVoices() {
   try {
-    const res = await fetch('/.netlify/functions/get-voices', {
-      method:'POST', 
-      headers:{'Content-Type':'application/json'}, 
-      credentials:'include'
-    });
+    const res = await fetch('/.netlify/functions/get-voices',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
     const voices = await res.json();
     voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = `${v.name} (${v.lang})`;
-      voiceSelect.appendChild(opt);
-    });
-  } catch(e){
-    voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
-    console.error(e);
-  }
+    voices.forEach(v=>{ const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
+  } catch(e){ voiceSelect.innerHTML='<option value="">Failed to load voices</option>'; console.error(e);}
 }
 
-// FBX models (static)
-const fbxModels = [
-  {id:'model1', name:'Humanoid Default'},
-  {id:'model2', name:'Robot Model'}
-];
-fbxModels.forEach(m => {
-  const opt = document.createElement('option');
-  opt.value = m.id;
-  opt.textContent = m.name;
-  fbxSelect.appendChild(opt);
-});
+const fbxModels = [{id:'model1',name:'Humanoid Default'},{id:'model2',name:'Robot Model'}];
+fbxModels.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.id; opt.textContent=m.name; fbxSelect.appendChild(opt); });
 
-// Form submission
-form.addEventListener('submit', async e => {
+form.addEventListener('submit', async e=>{
   e.preventDefault();
+  const name=document.getElementById('botName').value.trim();
+  const description=document.getElementById('description').value.trim();
+  const voice_id=voiceSelect.value;
+  const fbx_model_id=fbxSelect.value;
+  const paid_link=document.getElementById('gumroadLink').value.trim();
 
-  // Basic bot info
-  const name = document.getElementById('botName').value.trim();
-  const description = document.getElementById('description').value.trim();
-  const voice_id = voiceSelect.value;
-  const fbx_model_id = fbxSelect.value;
-  const paid_link = document.getElementById('gumroadLink').value.trim();
+  if(!name||!description||!voice_id||!fbx_model_id){ output.textContent='Please fill all required fields.'; output.className='output error'; return; }
+  output.textContent='Creating bot...'; output.className='output';
 
-  // Personality
-  const personality = {
-    tone: document.getElementById('personalityTone').value.trim(),
-    traits: document.getElementById('personalityTraits').value.trim().split(',').map(t => t.trim()).filter(Boolean),
-    values: document.getElementById('personalityValues').value.trim().split(',').map(t => t.trim()).filter(Boolean),
-    boundaries: document.getElementById('personalityBoundaries').value.trim().split(',').map(t => t.trim()).filter(Boolean)
-  };
-
-  // Emotional state
-  const emotional_state = {
-    mood: document.getElementById('mood').value.trim(),
-    trust: parseFloat(document.getElementById('trust').value) || 0.5,
-    stress: parseFloat(document.getElementById('stress').value) || 0.2
-  };
-
-  // Hugging Face / AI
-  const hfToken = document.getElementById('hfToken').value.trim();
-  const initialPrompt = document.getElementById('initialPrompt').value.trim();
-
-  // Expressions
-  const expressions = [
-    document.getElementById('expression1').value.trim(),
-    document.getElementById('expression2').value.trim()
-  ].filter(Boolean);
-
-  // Validation
-  if(!name || !description || !voice_id || !fbx_model_id){
-    output.textContent = 'Please fill all required fields.';
-    output.className = 'output error';
-    return;
-  }
-
-  output.textContent = 'Creating bot...';
-  output.className = 'output';
-
-  try {
-    const res = await fetch('/.netlify/functions/overpoweredbot', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      credentials: 'include',
-      body: JSON.stringify({
-        action: 'createbot',
-        name,
-        description,
-        voice_id,
-        fbx_model_id,
-        paid_link,
-        personality,
-        emotional_state,
-        hfToken,
-        initialPrompt,
-        expressions
-      })
+  try{
+    const res = await fetch('/.netlify/functions/overpoweredbot',{
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
     });
-
     const data = await res.json();
-
-    if(!res.ok || data.error){
-      output.textContent = `Error: ${data.error || 'Unknown'}`;
-      output.className = 'output error';
-      return;
-    }
-
-    output.innerHTML = `
-      <strong>Bot Created Successfully!</strong><br>
-      Bot Token (save this!): <code>${data.bot_token || 'N/A'}</code><br>
-      Expires in: ${data.expires_in_minutes || 'N/A'} minutes<br><br>
-      <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>
-    `;
-    output.className = 'output success';
+    if(!res.ok||data.error){ output.textContent=`Error: ${data.error||'Unknown'}`; output.className='output error'; return; }
+    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br>
+      <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
+    output.className='output success';
     form.reset();
-
-  } catch(e){
-    output.textContent = 'Failed to create bot.';
-    output.className = 'output error';
-    console.error(e);
-  }
+  }catch(e){ output.textContent='Failed to create bot.'; output.className='output error'; }
 });
 
 // -----------------------
 // INITIAL LOAD
 // -----------------------
 loadProfile().then(loadIncoming).then(loadVoices);
-
-
-
-
-
+</script>
+</body>
+</html>
 
 
 
