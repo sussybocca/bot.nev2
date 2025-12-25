@@ -352,7 +352,6 @@ img { max-width: 100%; height: auto; }
 
   <!-- Optional: AI preview -->
   <div id="botPreview" style="margin-top:20px;"></div>
-</div>
 
   <h2>Incoming Friend Requests</h2>
   <div id="incomingRequests"></div>
@@ -672,6 +671,7 @@ form.addEventListener('submit', async e => {
 // INITIAL LOAD
 // -----------------------
 loadProfile().then(loadIncoming).then(loadVoices);
+
 
 
 
