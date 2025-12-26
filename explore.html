@@ -4,27 +4,24 @@
 <meta charset="UTF-8">
 <title>Explore Bots</title>
 
-<!-- Favicon -->
 <link rel="icon" type="image/png" sizes="32x32" href="https://botnet2.netlify.app/assets/logo.png">
 <link rel="icon" type="image/png" sizes="16x16" href="https://botnet2.netlify.app/assets/logo.png">
 
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-
-/* Top logo header */
 #siteHeader { text-align: center; margin-bottom: 20px; }
 #topLogo { max-height: 80px; cursor: pointer; }
-
-.bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-input { padding: 5px; width: 70%; margin-right: 5px; }
+.bot { background: #fff; padding: 10px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+input, textarea { padding: 5px; width: 70%; margin-bottom: 5px; }
 button { padding: 5px 10px; margin-right:5px; }
 .fbx-preview { width:100px; height:100px; background:#ddd; display:inline-block; margin-right:5px; text-align:center; line-height:100px; }
+.edit-panel { display:none; background:#eee; padding:10px; margin-top:10px; border-radius:5px; }
 p { margin: 5px 0; word-break: break-word; }
+.edit-btn { position:absolute; top:10px; right:10px; }
 </style>
 </head>
 <body>
 
-<!-- Top Logo -->
 <header id="siteHeader">
   <a href="/index.html">
     <img src="https://botnet2.netlify.app/assets/logo.png" alt="Botnev Logo" id="topLogo" />
@@ -34,52 +31,37 @@ p { margin: 5px 0; word-break: break-word; }
 <h1>Explore Bots</h1>
 <div id="bots-container">Loading bots...</div>
 
-<!-- Load eSpeakNG -->
 <script src="/espeakng-min.js"></script>
 
 <script>
 let tts;
 let availableVoices = [];
 
-// Initialize TTS and browser voices
-document.addEventListener('DOMContentLoaded', async () => {
-  if (typeof eSpeakNG !== 'undefined') {
-    tts = new eSpeakNG('/espeakng-worker.js', () => console.log('eSpeakNG ready'));
-  }
+// Check if user is authorized to edit (via cookie)
+function isAuthorized() {
+  return document.cookie.includes('editBot=true');
+}
 
+// Initialize TTS
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof eSpeakNG !== 'undefined') tts = new eSpeakNG('/espeakng-worker.js');
   availableVoices = window.speechSynthesis.getVoices();
-  if (!availableVoices.length) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      availableVoices = window.speechSynthesis.getVoices();
-    };
-  }
+  if (!availableVoices.length) window.speechSynthesis.onvoiceschanged = () => availableVoices = window.speechSynthesis.getVoices();
 });
 
-// Find browser voice
 function findBrowserVoice(voiceId) {
   let voice = availableVoices.find(v => v.name.toLowerCase().includes(voiceId.toLowerCase()));
   if (!voice) {
-    const lang = voiceId.replace('_','-'); // en_us -> en-US
+    const lang = voiceId.replace('_','-');
     voice = availableVoices.find(v => v.lang.toLowerCase() === lang.toLowerCase());
   }
   return voice || null;
 }
 
-// Speak
 async function speak(reply, voiceId) {
   const browserVoice = findBrowserVoice(voiceId);
-  if (browserVoice) {
-    const utter = new SpeechSynthesisUtterance(reply);
-    utter.voice = browserVoice;
-    window.speechSynthesis.speak(utter);
-    return;
-  }
-  if (tts) {
-    try { await tts.speak(reply, { voice: voiceId }); } 
-    catch(err) { console.error('eSpeakNG TTS error:', err); }
-  } else {
-    console.warn('No TTS available for voice:', voiceId);
-  }
+  if (browserVoice) { const u = new SpeechSynthesisUtterance(reply); u.voice = browserVoice; window.speechSynthesis.speak(u); return; }
+  if (tts) try { await tts.speak(reply, { voice: voiceId }); } catch(err){ console.error(err); }
 }
 
 const functionPath = window.location.hostname.includes('localhost')
@@ -105,31 +87,72 @@ async function fetchBots() {
         const msg = input.value.trim();
         if (!msg) return;
 
-        // Fetch bot data from dataset
-        const dialogue = botDiv.dataset.dialogue || "Hello!";
+        const dialogue = botDiv.dataset.dialogue;
         const expressions = JSON.parse(botDiv.dataset.expressions || '[]');
         let memories = JSON.parse(botDiv.dataset.memories || '[]');
-        const dialogueState = JSON.parse(botDiv.dataset.dialogueState || '{}');
-        const botVoiceId = botDiv.dataset.voice || 'en_us';
+        const botVoiceId = botDiv.dataset.voice;
 
-        // Add user input to memories
         memories.push({ user: "You", fact: msg, importance: 0.5 });
-        if (memories.length > 100) memories = memories.slice(-100); // keep last 100
+        if (memories.length > 100) memories = memories.slice(-100);
 
-        // Construct reply: dialogue + expressions + optional state
         let reply = dialogue;
         if (expressions.length) reply += " [" + expressions.join(", ") + "]";
         reply += " You said: '" + msg + "'";
 
         chat.innerHTML += `<div><strong>You:</strong> ${msg}</div>`;
         chat.innerHTML += `<div><strong>Bot:</strong> ${reply}</div>`;
-
         await speak(reply, botVoiceId);
         input.value = '';
-
-        // Save updated memories in dataset
         botDiv.dataset.memories = JSON.stringify(memories);
       });
+
+      // Add Edit Button if authorized
+      if (isAuthorized()) {
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit Bot';
+        editBtn.className = 'edit-btn';
+        botDiv.appendChild(editBtn);
+
+        const editPanel = document.createElement('div');
+        editPanel.className = 'edit-panel';
+        editPanel.innerHTML = `
+          <label>Dialogue:</label><br>
+          <textarea rows="3" class="edit-dialogue">${botDiv.dataset.dialogue}</textarea><br>
+          <label>Expressions (JSON array):</label><br>
+          <textarea rows="2" class="edit-expressions">${botDiv.dataset.expressions}</textarea><br>
+          <label>Voice ID:</label><br>
+          <input type="text" class="edit-voice" value="${botDiv.dataset.voice}"><br>
+          <button class="save-btn">Save</button>
+        `;
+        botDiv.appendChild(editPanel);
+
+        editBtn.addEventListener('click', () => editPanel.style.display = editPanel.style.display === 'block' ? 'none' : 'block');
+
+        const saveBtn = editPanel.querySelector('.save-btn');
+        saveBtn.addEventListener('click', async () => {
+          botDiv.dataset.dialogue = editPanel.querySelector('.edit-dialogue').value;
+          botDiv.dataset.expressions = editPanel.querySelector('.edit-expressions').value;
+          botDiv.dataset.voice = editPanel.querySelector('.edit-voice').value;
+
+          try {
+            const updateRes = await fetch('/.netlify/functions/updateBot', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                botId: botDiv.dataset.id,
+                dialogue: botDiv.dataset.dialogue,
+                expressions: JSON.parse(botDiv.dataset.expressions),
+                voice: botDiv.dataset.voice
+              })
+            });
+            if (!updateRes.ok) throw new Error(`Server returned ${updateRes.status}`);
+            alert('Bot updated successfully!');
+          } catch(err) {
+            alert('Failed to update bot: ' + err.message);
+          }
+        });
+      }
+
     });
   } catch(err) {
     console.error(err);
