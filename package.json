@@ -1,6 +1,6 @@
 {
   "name": "overpowered-bot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Server moderation bot with custom bot creation, explore page, and user system",
   "type": "module",
   "main": "netlify/functions/overpoweredbot.js",
@@ -9,8 +9,10 @@
     "start": "node netlify/functions/overpoweredbot.js",
     "explore": "node netlify/functions/generateExplore.js",
     "signup": "node netlify/functions/signup.js",
-    "login": "node/netlify/functions/login.js",
-    "profile": "node/netlify/functions/profileCreation.js"
+    "login": "node netlify/functions/login.js",
+    "profile": "node netlify/functions/profileCreation.js",
+    "inbox": "node netlify/functions/Inbox.js",
+    "send": "node netlify/functions/sendEmail.js"
   },
   "author": "William Isaiah Jones",
   "license": "MIT",
@@ -32,7 +34,9 @@
     "get-video-info": "^1.0.0",
     "probe-image-size": "^7.1.0",
     "sharp": "^0.32.5",
-    "isomorphic-dompurify": "^2.34.0"
+    "isomorphic-dompurify": "^2.34.0",
+    "imap": "^0.8.19",
+    "mailparser": "^3.9.0"
   },
   "engines": {
     "node": ">=18"
