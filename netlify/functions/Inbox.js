@@ -1,12 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { simpleParser } from 'mailparser';
+import Imap from 'imap';
 import cookie from 'cookie';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const IMAP_CONFIG = {
+  user: process.env.EMAIL_USER,
+  password: process.env.EMAIL_PASS,
+  host: 'imap.gmail.com', // or the provider's IMAP server
+  port: 993,
+  tls: true,
+};
 
-// Rate limiting
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 min
 const RATE_LIMIT_MAX = 30;
@@ -26,66 +29,68 @@ export const handler = async (event) => {
     timestamps.push(now);
     rateLimitMap.set(ip, timestamps);
 
-    // Parse cookie
+    // Parse cookies
     const cookies = cookie.parse(event.headers.cookie || '');
     const session_token = cookies['__Host-session_secure'];
     if (!session_token) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
 
-    // Lookup session using raw token
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('sessions')
-      .select('user_email, expires_at')
-      .eq('session_token', session_token)
-      .single();
+    // You can still verify session from Supabase if you want
+    // ...
 
-    if (sessionError || !sessionData) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid or expired session' }) };
-    if (new Date(sessionData.expires_at) < new Date()) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Session expired' }) };
+    // Connect to IMAP
+    const imap = new Imap(IMAP_CONFIG);
 
-    const user_email = sessionData.user_email;
+    const openInbox = () => new Promise((resolve, reject) => {
+      imap.once('ready', () => {
+        imap.openBox('INBOX', true, (err, box) => {
+          if (err) reject(err);
+          else resolve(box);
+        });
+      });
+      imap.once('error', reject);
+      imap.connect();
+    });
 
-    // Pagination
-    let page = parseInt(event.queryStringParameters?.page || '1', 10);
-    let pageSize = parseInt(event.queryStringParameters?.pageSize || '20', 10);
-    if (isNaN(page) || page < 1) page = 1;
-    if (isNaN(pageSize) || pageSize < 1 || pageSize > 100) pageSize = 20;
-    const offset = (page - 1) * pageSize;
+    const fetchEmails = () => new Promise((resolve, reject) => {
+      imap.search(['ALL'], (err, results) => {
+        if (err) return reject(err);
+        if (!results || !results.length) return resolve([]);
 
-    // Fetch emails only
-    const { data: emails, error: emailsError } = await supabase
-      .from('emails')
-      .select('id, from_user, subject, body, created_at')
-      .eq('to_user', user_email)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+        const f = imap.fetch(results.slice(-20), { // fetch last 20 emails
+          bodies: '',
+          markSeen: false,
+        });
 
-    if (emailsError) throw emailsError;
+        const emails = [];
+        f.on('message', msg => {
+          let emailBuffer = '';
+          msg.on('body', stream => {
+            stream.on('data', chunk => { emailBuffer += chunk.toString('utf8'); });
+          });
+          msg.once('end', async () => {
+            const parsed = await simpleParser(emailBuffer);
+            emails.push({
+              id: parsed.messageId,
+              from: parsed.from?.text || 'Unknown',
+              subject: parsed.subject || '',
+              body: parsed.text || '',
+              date: parsed.date || new Date(),
+            });
+          });
+        });
 
-    // Fetch sender info for each email
-    const inbox = await Promise.all(emails.map(async e => {
-      const { data: sender } = await supabase
-        .from('users')
-        .select('email, username, avatar_url, last_online')
-        .eq('email', e.from_user)
-        .maybeSingle();
+        f.once('error', reject);
+        f.once('end', () => {
+          imap.end();
+          resolve(emails.reverse());
+        });
+      });
+    });
 
-      const lastOnline = new Date(sender?.last_online || 0);
-      const senderOnline = Date.now() - lastOnline.getTime() < 5 * 60 * 1000;
+    await openInbox();
+    const inbox = await fetchEmails();
 
-      return {
-        id: e.id,
-        subject: String(e.subject || ''),
-        body: String(e.body || ''),
-        created_at: e.created_at,
-        from: {
-          email: sender?.email || e.from_user || 'Unknown',
-          username: sender?.username || sender?.email || e.from_user || 'Unknown',
-          avatar_url: sender?.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender?.username || sender?.email || e.from_user || 'user')}.svg`,
-          online: senderOnline
-        }
-      };
-    }));
-
-    return { statusCode: 200, body: JSON.stringify({ success: true, emails: inbox, page, pageSize }) };
+    return { statusCode: 200, body: JSON.stringify({ success: true, emails: inbox }) };
 
   } catch (err) {
     console.error('Inbox error:', err);
