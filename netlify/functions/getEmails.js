@@ -47,29 +47,27 @@ export const handler = async (event) => {
 
     const user_email = sessionData.user_email;
 
-    // Fetch emails with sender info
+    // Fetch emails (without broken foreign key)
     const { data: emails, error: emailsError } = await supabase
       .from('emails')
-      .select(`
-        id,
-        subject,
-        from_user,
-        body,
-        created_at,
-        from_user:users!emails_from_user_fkey (
-          username,
-          email,
-          avatar_url,
-          last_online
-        )
-      `)
+      .select('*')
       .eq('to_user', user_email)
       .order('created_at', { ascending: false });
 
     if (emailsError) throw emailsError;
 
-    const mappedEmails = emails.map((e) => {
-      const sender = e.from_user || {};
+    // Fetch sender info manually
+    const mappedEmails = await Promise.all(emails.map(async (e) => {
+      let sender = { email: e.from_user, username: e.from_user, avatar_url: null, last_online: null };
+      if (e.from_user) {
+        const { data: senderData } = await supabase
+          .from('users')
+          .select('username, email, avatar_url, last_online')
+          .eq('email', e.from_user)
+          .maybeSingle();
+        if (senderData) sender = senderData;
+      }
+
       const lastOnline = new Date(sender.last_online || 0);
       const senderOnline = Date.now() - lastOnline.getTime() < 5 * 60 * 1000;
 
@@ -83,13 +81,11 @@ export const handler = async (event) => {
           username: sender.username || sender.email || 'Unknown',
           avatar_url:
             sender.avatar_url ||
-            `https://avatars.dicebear.com/api/initials/${encodeURIComponent(
-              sender.username || sender.email || 'user'
-            )}.svg`,
+            `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender.username || sender.email || 'user')}.svg`,
           online: senderOnline,
         },
       };
-    });
+    }));
 
     return { statusCode: 200, body: JSON.stringify({ success: true, emails: mappedEmails }) };
   } catch (err) {
