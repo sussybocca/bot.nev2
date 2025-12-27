@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import cookie from 'cookie';
-import crypto from 'crypto';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -11,9 +10,6 @@ const supabase = createClient(
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 min
 const RATE_LIMIT_MAX = 30;
-
-// Hash tokens for security
-const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 export const handler = async (event) => {
   try {
@@ -35,13 +31,11 @@ export const handler = async (event) => {
     const session_token = cookies['__Host-session_secure'];
     if (!session_token) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
 
-    const hashedToken = hashToken(session_token);
-
-    // Verify session
+    // ✅ Lookup session using raw token
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('user_email, expires_at')
-      .eq('session_token', hashedToken)
+      .eq('session_token', session_token) // raw, not hashed
       .single();
 
     if (sessionError || !sessionData) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid or expired session' }) };
