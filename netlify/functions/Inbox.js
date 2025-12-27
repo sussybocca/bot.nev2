@@ -64,11 +64,11 @@ export const handler = async (event) => {
     const inbox = await Promise.all(emails.map(async e => {
       const { data: sender } = await supabase
         .from('users')
-        .select('email, username, avatar_url, last_online')
+        .select('email, username, avatar_url, online')
         .eq('email', e.from_user)
         .maybeSingle();
 
-      const lastOnline = new Date(sender?.last_online || 0);
+      const lastOnline = new Date(sender?.online || 0);
       const senderOnline = Date.now() - lastOnline.getTime() < 5 * 60 * 1000;
 
       return {
