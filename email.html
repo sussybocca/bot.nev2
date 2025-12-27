@@ -91,24 +91,33 @@ toUserSelect.addEventListener('change', () => {
   avatarPreview.src = selected?.dataset.avatar || '';
 });
 
-// Load inbox with sender info
+// Load inbox
 async function loadInbox() {
   try {
-    const res = await fetch('/.netlify/functions/getEmails', { method: 'POST', credentials: 'include' });
+    const res = await fetch('/.netlify/functions/Inbox', { method: 'GET', credentials: 'include' });
     const data = await res.json();
-    if (!data.success) { inboxDiv.textContent = 'Failed to load inbox'; return; }
-    if (!data.emails.length) { inboxDiv.textContent = 'No emails'; return; }
+
+    if (!data.success) {
+      inboxDiv.textContent = 'Failed to load inbox';
+      return;
+    }
+
+    if (!data.emails.length) {
+      inboxDiv.textContent = 'No emails';
+      return;
+    }
 
     inboxDiv.innerHTML = '';
     data.emails.forEach(e => {
       const div = document.createElement('div');
       div.className = 'email';
-      const sender = e.from || {};
-      const statusEmoji = sender.online ? '🟢' : '⚪';
+
+      // Currently we only have from_user string, not full sender object
+      const senderName = e.from_user || 'Unknown';
+
       div.innerHTML = `
-        <img src="${sender.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender.username || sender.email || 'user')}.svg`}" alt="Avatar">
         <div class="email-content">
-          <div><strong>From:</strong> ${statusEmoji} ${sanitize(sender.username || sender.email || 'Unknown')}</div>
+          <div><strong>From:</strong> ${sanitize(senderName)}</div>
           <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
           <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
           <div>${sanitize(e.body)}</div>
@@ -116,10 +125,18 @@ async function loadInbox() {
       `;
       inboxDiv.appendChild(div);
     });
+
   } catch (err) {
     console.error('Failed to load inbox:', err);
     inboxDiv.textContent = 'Failed to load inbox';
   }
+}
+
+// Simple sanitizer for frontend display
+function sanitize(str) {
+  const temp = document.createElement('div');
+  temp.textContent = str;
+  return temp.innerHTML;
 }
 
 // Send email
