@@ -1,16 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import videoMetadata from 'video-metadata-thumbnails';
 import getVideoInfo from 'get-video-info';
 import probe from 'probe-image-size';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
 
-// Initialize WebAssembly FFmpeg
-const ffmpeg = createFFmpeg({ log: true });
-await ffmpeg.load();
-
-// Supabase client
+// Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -23,103 +18,98 @@ export const handler = async () => {
       .list('', { limit: 100, offset: 0 });
 
     if (listError) return { statusCode: 500, body: listError.message };
-    if (!files || files.length === 0) return { statusCode: 200, body: JSON.stringify([]) };
+    if (!files?.length) return { statusCode: 200, body: JSON.stringify([]) };
 
-    const videosWithUser = await Promise.all(
+    const results = await Promise.all(
       files.map(async (file) => {
-        const { data: videoRecord, error: videoError } = await supabase
+        const { data: videoRecord } = await supabase
           .from('videos')
           .select('user_id, created_at, cover_url')
           .eq('video_url', file.name)
           .maybeSingle();
 
-        if (videoError || !videoRecord) return null;
+        if (!videoRecord) return null;
 
-        // Signed video URL
-        const { data: signedVideoData, error: signedVideoError } = await supabase
-          .storage
-          .from('videos')
+        const { data: signedVideo } = await supabase
+          .storage.from('videos')
           .createSignedUrl(file.name, 3600);
 
-        if (signedVideoError) return null;
+        if (!signedVideo) return null;
 
-        // Fetch video buffer
-        const videoBuffer = await fetch(signedVideoData.signedUrl).then(res => res.arrayBuffer());
+        const videoBuffer = await fetch(signedVideo.signedUrl).then(r => r.arrayBuffer());
 
-        // Get metadata using video-metadata-thumbnails
+        // ================= METADATA =================
         let duration = null;
         let resolution = null;
+
         try {
-          const metadata = await videoMetadata(new Uint8Array(videoBuffer));
-          duration = metadata.duration;
-          resolution = { width: metadata.width, height: metadata.height };
-        } catch (err) {
-          console.error('video-metadata-thumbnails error', err);
-        }
-
-        // Optional: fallback using get-video-info
-        if (!duration || !resolution) {
+          const meta = await videoMetadata(new Uint8Array(videoBuffer));
+          duration = meta.duration;
+          resolution = { width: meta.width, height: meta.height };
+        } catch {
           try {
-            const info = await getVideoInfo(Buffer.from(videoBuffer));
-            duration = info.duration || duration;
-            resolution = resolution || { width: info.width, height: info.height };
-          } catch (err) {
-            console.error('get-video-info error', err);
-          }
+            const info = await new Promise((res, rej) =>
+              getVideoInfo(Buffer.from(videoBuffer), (e, d) => e ? rej(e) : res(d))
+            );
+            duration = parseFloat(info.duration) || null;
+            resolution = info.width && info.height
+              ? { width: info.width, height: info.height }
+              : null;
+          } catch {}
         }
 
-        // Cover thumbnail
+        // ================= COVER =================
         let coverUrl = null;
+        let coverSize = null;
+
         if (videoRecord.cover_url) {
-          const { data: signedCoverData, error: signedCoverError } = await supabase
-            .storage
-            .from('covers')
+          const { data: signedCover } = await supabase
+            .storage.from('covers')
             .createSignedUrl(videoRecord.cover_url, 3600);
 
-          if (!signedCoverError) {
-            const coverBuffer = Buffer.from(await fetch(signedCoverData.signedUrl).then(r => r.arrayBuffer()));
-            
-            // Optional: get dimensions with probe-image-size
-            try {
-              const imageMeta = probe.sync(coverBuffer);
-              // imageMeta.width & imageMeta.height if needed
-            } catch (err) {
-              console.error('probe-image-size error', err);
-            }
+          if (signedCover) {
+            const coverBuffer = Buffer.from(
+              await fetch(signedCover.signedUrl).then(r => r.arrayBuffer())
+            );
 
-            await sharp(coverBuffer)
-              .resize(320, 180)
-              .toBuffer();
-            coverUrl = signedCoverData.signedUrl;
+            // get image dimensions without decoding entire file
+            try {
+              const probed = await probe(coverBuffer);
+              coverSize = { width: probed.width, height: probed.height };
+            } catch {}
+
+            // generate thumbnail
+            await sharp(coverBuffer).resize(320, 180).toBuffer();
+            coverUrl = signedCover.signedUrl;
           }
         }
 
-        // User info
+        // ================= USER =================
         const { data: userData } = await supabase
           .from('users')
           .select('id, email')
           .eq('id', videoRecord.user_id)
           .maybeSingle();
 
-        const user = userData ? { id: userData.id, email: userData.email } : null;
-
         return {
           name: file.name,
           size: file.size,
-          uploaded_at: videoRecord.created_at ? new Date(videoRecord.created_at).toISOString() : null,
-          videoUrl: signedVideoData.signedUrl,
+          uploaded_at: new Date(videoRecord.created_at).toISOString(),
+          videoUrl: signedVideo.signedUrl,
           coverUrl,
+          coverSize,
           duration,
           resolution,
-          user
+          user: userData ? { id: userData.id, email: userData.email } : null
         };
       })
     );
 
     return {
       statusCode: 200,
-      body: JSON.stringify(videosWithUser.filter(v => v))
+      body: JSON.stringify(results.filter(Boolean))
     };
+
   } catch (err) {
     console.error(err);
     return { statusCode: 500, body: err.message };
