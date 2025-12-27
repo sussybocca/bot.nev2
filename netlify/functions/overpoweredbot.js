@@ -18,15 +18,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 function generateSecureToken() {
   return crypto.randomBytes(48).toString('base64url');
 }
-
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
-
 function generateAPIKey() {
   return crypto.randomBytes(32).toString('base64url');
 }
-
 function isValidInput(str) {
   return typeof str === 'string' && str.length > 0 && str.length < 500;
 }
@@ -61,8 +58,7 @@ function updateEmotion(state, message, history = []) {
   if (message.includes("thank")) state.trust += 0.05;
   if (message.includes("hate")) state.stress += 0.1;
 
-  // Decay over time
-  const decayRate = 0.0001;
+  const decayRate = 0.00005;
   state.trust = Math.min(1, Math.max(0, state.trust - decayRate * history.length));
   state.stress = Math.min(1, Math.max(0, state.stress - decayRate * history.length));
 
@@ -73,11 +69,10 @@ function updateEmotion(state, message, history = []) {
 function storeMemory(memories, user, fact, importance = 0.5) {
   const timestamp = Date.now();
   memories.push({ user, fact, importance, timestamp });
-  if (memories.length > 200) memories = memories.slice(-200);
+  if (memories.length > 500) memories = memories.slice(-500);
   return memories;
 }
-
-function retrieveMemory(memories, query, topN = 5) {
+function retrieveMemory(memories, query, topN = 10) {
   return memories
     .map(mem => {
       const score = query.split(" ").reduce((acc, word) => acc + (mem.fact.includes(word) ? 1 : 0), 0);
@@ -94,7 +89,6 @@ function updateGoals(goals, outcome) {
     return goal;
   });
 }
-
 function getActiveGoals(goals) {
   return goals.filter(g => !g.completed).sort((a, b) => b.priority - a.priority);
 }
@@ -120,6 +114,46 @@ Bot:`
   return data[0]?.generated_text || "...";
 }
 
+// ---------------------- Advanced Reasoning Scheduler ----------------------
+const reasoningQueue = new Map(); // botId => interval
+
+async function advancedReasoningStep(bot) {
+  const reflectionPrompt = `Review the bot state:
+Dialogue: ${bot.dialogue}
+Memories: ${bot.memories.map(m => m.fact).join("\n")}
+Goals: ${bot.goals.map(g => g.goal + " (completed: " + g.completed + ")").join(", ")}
+Personality: ${JSON.stringify(bot.personality)}
+Emotional state: ${JSON.stringify(bot.emotional_state)}
+
+Suggest improvements, plans, or sub-goals for the bot.`;
+
+  const plan = await freeAI(reflectionPrompt, bot.personality, bot.memories, bot.emotional_state, bot.goals);
+
+  bot.dialogue += `\n[Planning Step]: ${plan}`;
+  bot.goals = updateGoals(bot.goals, plan);
+  bot.memories = storeMemory(bot.memories, "system", `Generated plan: ${plan}`, 0.7);
+
+  await supabase.from('bots').update({
+    dialogue: bot.dialogue,
+    goals: bot.goals,
+    memories: bot.memories
+  }).eq('api_key', bot.api_key);
+}
+
+function scheduleReasoning(bot) {
+  const botId = bot.api_key;
+  if (reasoningQueue.has(botId)) return;
+
+  const interval = setInterval(async () => {
+    const { data: bots } = await supabase.from('bots').select('*').eq('api_key', botId).limit(1);
+    if (!bots || !bots.length) return clearInterval(interval);
+
+    await advancedReasoningStep(bots[0]);
+  }, 30 * 1000); // every 30s
+
+  reasoningQueue.set(botId, interval);
+}
+
 // ---------------------- Bot Generator ----------------------
 function generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey, customization }) {
   return {
@@ -133,22 +167,20 @@ const CUSTOMIZATION=${JSON.stringify(customization)};`
 
 // ---------------------- Create Bot ----------------------
 async function createBot({ name, description, voice_id, fbx_model_id, paid_link, personality, emotional_state, goals, expressions, dialogue, memories, dialogue_state, customization }, ip) {
-
   if (!rateLimit(ip)) return { error: "Too many requests" };
   if (![name, description, voice_id, fbx_model_id].every(isValidInput)) return { error: "Invalid input" };
 
   const apiKey = generateAPIKey();
   const rawToken = generateSecureToken();
   const hashedToken = hashToken(rawToken);
-  const tokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+  const tokenExpiry = Date.now() + 15 * 60 * 1000;
 
   const files = generateUserFiles({ name, description, voice_id, fbx_model_id, apiKey, customization });
   if (moderateContent(files)) return { error: "Harmful content detected" };
 
-  // Default structures
   personality = personality || { tone: "friendly", traits: ["curious"], values: ["honesty"], boundaries: ["no violence"] };
   emotional_state = emotional_state || { mood: "curious", trust: 0.5, stress: 0.2 };
-  goals = Array.isArray(goals) && goals.length ? goals : [{ goal: "Help user", priority: 1, completed: false }];
+  goals = Array.isArray(goals) && goals.length ? goals.map(g => ({ ...g, completed: false })) : [{ goal: "Help user", priority: 1, completed: false }];
   expressions = Array.isArray(expressions) && expressions.length ? expressions : [];
   dialogue = dialogue || "";
   memories = Array.isArray(memories) ? memories : [];
@@ -164,7 +196,6 @@ async function createBot({ name, description, voice_id, fbx_model_id, paid_link,
     fbx_model_id,
     paid_link: paid_link || null,
     created_at: new Date().toISOString(),
-
     personality,
     emotional_state,
     goals,
@@ -173,20 +204,16 @@ async function createBot({ name, description, voice_id, fbx_model_id, paid_link,
     memories,
     dialogue_state,
     customization,
-
+    advancedFeatures: true,
     token_hash: hashedToken,
     token_expiry: tokenExpiry
   };
 
   const { data, error } = await supabase.from('bots').insert(bot);
-  if (error) {
-    return {
-      error: error.message || "Database error",
-      details: error.details || null,
-      hint: error.hint || null,
-      code: error.code || null
-    };
-  }
+  if (error) return { error: error.message || "Database error" };
+
+  // Start background reasoning loop
+  scheduleReasoning(bot);
 
   return {
     message: "Bot created. Save this token now — it will never be shown again.",
