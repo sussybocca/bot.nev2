@@ -4,21 +4,39 @@ import nodemailer from 'nodemailer';
 import cookie from 'cookie';
 import crypto from 'crypto';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
+// Use OAuth2 for email sending if possible instead of plain password
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   secure: true,
 });
 
+// Sanitize input to prevent XSS
 const sanitize = (str) => {
   if (!str) return '';
-  return str.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
-            .replace(/(\r|\n)/g, '');
+  return str
+    .replace(/[&<>"'/]/g, (c) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;',
+    }[c]))
+    .replace(/(\r|\n)/g, '');
 };
 
-const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// Email format validation
+const isValidEmail = (email) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// Generate a cryptographically secure token (optional if you need one)
+const generateToken = () => crypto.randomBytes(32).toString('hex');
 
 export const handler = async (event) => {
   try {
@@ -26,14 +44,14 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method not allowed' }) };
     }
 
-    // Parse cookie
+    // Parse cookies securely
     const cookies = cookie.parse(event.headers.cookie || '');
     const session_token = cookies['__Host-session_secure'];
     if (!session_token) {
       return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
     }
 
-    // Verify session
+    // Verify session from DB
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('user_email, expires_at')
@@ -60,7 +78,7 @@ export const handler = async (event) => {
       return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Sender not verified or invalid' }) };
     }
 
-    // Parse request body
+    // Parse request body safely
     let payload;
     try { payload = JSON.parse(event.body || '{}'); } 
     catch { 
@@ -106,7 +124,7 @@ export const handler = async (event) => {
     const senderStatusText = senderOnline ? 'Online' : 'Offline';
     const senderAvatar = senderData.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(senderData.username)}.svg`;
 
-    // Send email with HTML
+    // Send email with HTML safely
     await transporter.sendMail({
       from: `"${senderData.username}" <${senderData.email}>`,
       to: recipientData.email,
@@ -144,6 +162,6 @@ export const handler = async (event) => {
 
   } catch (err) {
     console.error('sendEmail error:', err);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error', details: err.message }) };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error' }) };
   }
 };
