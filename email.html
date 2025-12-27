@@ -112,15 +112,17 @@ async function loadInbox() {
       const div = document.createElement('div');
       div.className = 'email';
 
-      // Currently we only have from_user string, not full sender object
-      const senderName = e.from_user || 'Unknown';
+      const sender = e.from || { username: 'Unknown', email: '', avatar_url: '', online: false };
 
       div.innerHTML = `
-        <div class="email-content">
-          <div><strong>From:</strong> ${sanitize(senderName)}</div>
-          <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
-          <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
-          <div>${sanitize(e.body)}</div>
+        <div class="email-content" style="display:flex; gap:10px; align-items:flex-start; padding:10px; border-bottom:1px solid #ddd;">
+          <img src="${sanitize(sender.avatar_url)}" alt="${sanitize(sender.username)}" width="50" height="50" style="border-radius:50%;">
+          <div>
+            <div><strong>From:</strong> ${sanitize(sender.username)} (${sanitize(sender.email)}) ${sender.online ? '🟢' : '⚪'}</div>
+            <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
+            <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+            <div>${sanitize(e.body)}</div>
+          </div>
         </div>
       `;
       inboxDiv.appendChild(div);
@@ -135,9 +137,10 @@ async function loadInbox() {
 // Simple sanitizer for frontend display
 function sanitize(str) {
   const temp = document.createElement('div');
-  temp.textContent = str;
+  temp.textContent = str || '';
   return temp.innerHTML;
 }
+
 
 // Send email
 sendBtn.addEventListener('click', async () => {
