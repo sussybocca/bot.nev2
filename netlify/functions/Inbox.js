@@ -31,11 +31,11 @@ export const handler = async (event) => {
     const session_token = cookies['__Host-session_secure'];
     if (!session_token) return { statusCode: 401, body: JSON.stringify({ success: false, error: 'Not authenticated' }) };
 
-    // ✅ Lookup session using raw token
+    // Lookup session using raw token
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('user_email, expires_at')
-      .eq('session_token', session_token) // raw, not hashed
+      .eq('session_token', session_token)
       .single();
 
     if (sessionError || !sessionData) return { statusCode: 403, body: JSON.stringify({ success: false, error: 'Invalid or expired session' }) };
@@ -50,31 +50,25 @@ export const handler = async (event) => {
     if (isNaN(pageSize) || pageSize < 1 || pageSize > 100) pageSize = 20;
     const offset = (page - 1) * pageSize;
 
-    // Fetch emails with sender info
+    // Fetch emails only
     const { data: emails, error: emailsError } = await supabase
       .from('emails')
-      .select(`
-        id,
-        subject,
-        body,
-        created_at,
-        from_user:users!emails_from_user_fkey (
-          email,
-          username,
-          avatar_url,
-          last_online
-        )
-      `)
+      .select('id, from_user, subject, body, created_at')
       .eq('to_user', user_email)
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1);
 
     if (emailsError) throw emailsError;
 
-    // Map emails with sender details
-    const inbox = emails.map(e => {
-      const sender = e.from_user || {};
-      const lastOnline = new Date(sender.last_online || 0);
+    // Fetch sender info for each email
+    const inbox = await Promise.all(emails.map(async e => {
+      const { data: sender } = await supabase
+        .from('users')
+        .select('email, username, avatar_url, last_online')
+        .eq('email', e.from_user)
+        .maybeSingle();
+
+      const lastOnline = new Date(sender?.last_online || 0);
       const senderOnline = Date.now() - lastOnline.getTime() < 5 * 60 * 1000;
 
       return {
@@ -83,13 +77,13 @@ export const handler = async (event) => {
         body: String(e.body || ''),
         created_at: e.created_at,
         from: {
-          email: sender.email || 'Unknown',
-          username: sender.username || sender.email || 'Unknown',
-          avatar_url: sender.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender.username || sender.email || 'user')}.svg`,
+          email: sender?.email || e.from_user || 'Unknown',
+          username: sender?.username || sender?.email || e.from_user || 'Unknown',
+          avatar_url: sender?.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(sender?.username || sender?.email || e.from_user || 'user')}.svg`,
           online: senderOnline
         }
       };
-    });
+    }));
 
     return { statusCode: 200, body: JSON.stringify({ success: true, emails: inbox, page, pageSize }) };
 
