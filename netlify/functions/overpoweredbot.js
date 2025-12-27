@@ -3,13 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
 
-// ---------------------- Supabase Client ----------------------
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 if (!SUPABASE_URL || !SUPABASE_KEY) process.exit(1);
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ---------------------- Security & Helpers ----------------------
+// ---------------------- Helpers ----------------------
 function generateSecureToken() { return crypto.randomBytes(48).toString('base64url'); }
 function hashToken(token) { return crypto.createHash('sha256').update(token).digest('hex'); }
 function generateAPIKey() { return crypto.randomBytes(32).toString('base64url'); }
@@ -35,8 +35,8 @@ function moderateContent(files) {
 // ---------------------- Advanced Emotion ----------------------
 function updateEmotion(state, message, history = []) {
   history.push({ message, timestamp: Date.now() });
-  if (message.includes("thank")) state.trust += 0.05;
-  if (message.includes("hate")) state.stress += 0.1;
+  if (message.toLowerCase().includes("thank")) state.trust += 0.05;
+  if (message.toLowerCase().includes("hate")) state.stress += 0.1;
   const decayRate = 0.00005;
   state.trust = Math.min(1, Math.max(0, state.trust - decayRate * history.length));
   state.stress = Math.min(1, Math.max(0, state.stress - decayRate * history.length));
@@ -50,17 +50,19 @@ function storeMemory(memories, user, fact, importance = 0.5) {
   if (memories.length > 500) memories = memories.slice(-500);
   return memories;
 }
+
 function retrieveMemory(memories, query, topN = 10) {
   return memories
-    .map(mem => ({ ...mem, score: query.split(" ").reduce((acc, word) => acc + (mem.fact.includes(word) ? 1 : 0), 0) }))
+    .map(mem => ({ ...mem, score: query.split(" ").reduce((acc, word) => acc + (mem.fact.toLowerCase().includes(word.toLowerCase()) ? 1 : 0), 0) }))
     .sort((a,b) => b.score - a.score)
     .slice(0, topN);
 }
 
-// ---------------------- Goal Management ----------------------
+// ---------------------- Goals ----------------------
 function updateGoals(goals, outcome) {
   return goals.map(goal => { if (outcome.includes(goal.goal)) goal.completed = true; return goal; });
 }
+
 function getActiveGoals(goals) {
   return goals.filter(g => !g.completed).sort((a,b) => b.priority - a.priority);
 }
@@ -84,17 +86,20 @@ Bot:`
   return data[0]?.generated_text || "...";
 }
 
-// ---------------------- Advanced Reasoning (serverless-friendly) ----------------------
+// ---------------------- Advanced Reasoning ----------------------
 async function performAdvancedReasoning(bot) {
-  const reflectionPrompt = `Review the bot state:
+  if(!bot.advancedFeatures) return;
+
+  const reflectionPrompt = `Review bot state:
 Dialogue: ${bot.dialogue}
 Memories: ${bot.memories.map(m => m.fact).join("\n")}
 Goals: ${bot.goals.map(g => g.goal + " (completed: " + g.completed + ")").join(", ")}
 Personality: ${JSON.stringify(bot.personality)}
 Emotional state: ${JSON.stringify(bot.emotional_state)}
-Suggest improvements, plans, or sub-goals for the bot.`;
+Suggest improvements, plans, or sub-goals.`;
 
   const plan = await freeAI(reflectionPrompt, bot.personality, bot.memories, bot.emotional_state, bot.goals);
+
   bot.dialogue += `\n[Planning Step]: ${plan}`;
   bot.goals = updateGoals(bot.goals, plan);
   bot.memories = storeMemory(bot.memories, "system", `Generated plan: ${plan}`, 0.7);
@@ -141,15 +146,15 @@ async function createBot(data, ip) {
     dialogue: data.dialogue||"",
     memories: data.memories||[],
     customization: data.customization||{},
-    advancedFeatures:true,
-    token_hash:hashedToken,
-    token_expiry:Date.now()+15*60*1000
+    advancedFeatures: true,
+    token_hash: hashedToken,
+    token_expiry: Date.now()+15*60*1000
   };
 
   const { error } = await supabase.from('bots').insert(bot);
   if (error) return { error:error.message || "Database error" };
 
-  // Perform a single advanced reasoning step immediately
+  // Immediate reasoning step
   await performAdvancedReasoning(bot);
 
   return { message:"Bot created.", bot_token:rawToken, api_key:apiKey, expires_in_minutes:15 };
