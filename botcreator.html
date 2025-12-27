@@ -19,29 +19,26 @@
   .btn-small { width:auto; padding:6px 12px; margin-top:5px; }
   .goalItem, .expressionItem, .memoryItem, .customizationItem { display:flex; gap:10px; margin-bottom:5px; }
   .goalItem input, .expressionItem input, .memoryItem input, .customizationItem input { flex:1; }
+  #preview { background:#f0f0f0; padding:15px; border-radius:6px; margin-top:20px; font-family:monospace; max-height:300px; overflow-y:auto; }
 </style>
 </head>
 <body>
 
 <h1>🤖 Create Your AI Bot</h1>
-<p style="color:#555;">Note: Emotional state, memory, and goals are simulated. This bot will not autonomously reason or act.</p>
+<p style="color:#555;">See memory, goals, and advanced thinking in real-time preview below.</p>
 
 <form id="botForm">
-  <!-- Basic info -->
   <input type="text" id="botName" placeholder="Bot Name" required />
   <textarea id="description" placeholder="Describe your bot..." required></textarea>
 
-  <!-- Voice & FBX -->
   <label for="voiceSelect">Select Voice:</label>
   <select id="voiceSelect" required><option value="">Loading voices...</option></select>
 
   <label for="fbxSelect">Select FBX Model:</label>
   <select id="fbxSelect" required><option value="">Choose FBX Model</option></select>
 
-  <!-- Paid link -->
   <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link" />
 
-  <!-- Personality -->
   <fieldset>
     <legend>Personality</legend>
     <input type="text" id="personalityTone" placeholder="Tone (e.g., friendly)" />
@@ -50,7 +47,6 @@
     <input type="text" id="personalityBoundaries" placeholder="Boundaries (comma separated)" />
   </fieldset>
 
-  <!-- Emotional state -->
   <fieldset>
     <legend>Emotional State</legend>
     <input type="text" id="mood" placeholder="Mood (e.g., curious)" />
@@ -58,7 +54,6 @@
     <input type="number" id="stress" placeholder="Stress (0-1)" min="0" max="1" step="0.01" value="0.2" />
   </fieldset>
 
-  <!-- Goals -->
   <fieldset>
     <legend>Goals</legend>
     <div id="goalsContainer">
@@ -70,7 +65,6 @@
     <button type="button" id="addGoalBtn" class="btn-small">Add Another Goal</button>
   </fieldset>
 
-  <!-- Expressions -->
   <fieldset>
     <legend>Expressions (use emojis!)</legend>
     <div id="expressionsContainer">
@@ -81,7 +75,6 @@
     <button type="button" id="addExpressionBtn" class="btn-small">Add Another Expression</button>
   </fieldset>
 
-  <!-- Memory -->
   <fieldset>
     <legend>Memory (optional)</legend>
     <div id="memoryContainer">
@@ -93,13 +86,11 @@
     <button type="button" id="addMemoryBtn" class="btn-small">Add Another Memory</button>
   </fieldset>
 
-  <!-- Custom Dialogue -->
   <fieldset>
     <legend>Custom Dialogue (.txt)</legend>
     <input type="file" id="dialogueFile" accept=".txt" />
   </fieldset>
 
-  <!-- Customization -->
   <fieldset>
     <legend>Bot Customization (optional)</legend>
     <div id="customizationContainer">
@@ -111,7 +102,6 @@
     <button type="button" id="addCustomizationBtn" class="btn-small">Add Custom Feature</button>
   </fieldset>
 
-  <!-- Advanced Features -->
   <fieldset>
     <legend>Advanced Features</legend>
     <label>
@@ -122,6 +112,9 @@
   <button type="submit">Create Bot</button>
 </form>
 
+<h3>Live Bot Preview</h3>
+<div id="preview">Memory and settings will appear here in real time...</div>
+
 <div id="output" class="output"></div>
 
 <script>
@@ -129,169 +122,95 @@ const form = document.getElementById('botForm');
 const output = document.getElementById('output');
 const voiceSelect = document.getElementById('voiceSelect');
 const fbxSelect = document.getElementById('fbxSelect');
+const preview = document.getElementById('preview');
 
-// Add goal
-const goalsContainer = document.getElementById('goalsContainer');
-document.getElementById('addGoalBtn').addEventListener('click', () => {
+function addItem(containerId, html) {
   const div = document.createElement('div');
-  div.className = 'goalItem';
-  div.innerHTML = `<input type="text" class="goalText" placeholder="Goal (e.g., Help user)" />
-                   <input type="number" class="goalPriority" placeholder="Priority (1-10)" min="1" max="10" step="1" value="1" />`;
-  goalsContainer.appendChild(div);
-});
-
-// Add expression
-const expressionsContainer = document.getElementById('expressionsContainer');
-document.getElementById('addExpressionBtn').addEventListener('click', () => {
-  const div = document.createElement('div');
-  div.className = 'expressionItem';
-  div.innerHTML = `<input type="text" class="expressionInput" placeholder="Expression (use emoji)" />`;
-  expressionsContainer.appendChild(div);
-});
-
-// Add memory
-const memoryContainer = document.getElementById('memoryContainer');
-document.getElementById('addMemoryBtn').addEventListener('click', () => {
-  const div = document.createElement('div');
-  div.className = 'memoryItem';
-  div.innerHTML = `<input type="text" class="memoryFact" placeholder="Fact about user or world" />
-                   <input type="number" class="memoryImportance" placeholder="Importance (0-1)" min="0" max="1" step="0.01" value="0.5" />`;
-  memoryContainer.appendChild(div);
-});
-
-// Add customization
-const customizationContainer = document.getElementById('customizationContainer');
-document.getElementById('addCustomizationBtn').addEventListener('click', () => {
-  const div = document.createElement('div');
-  div.className = 'customizationItem';
-  div.innerHTML = `<input type="text" class="customizationKey" placeholder="Feature (e.g., hatColor)" />
-                   <input type="text" class="customizationValue" placeholder="Value (e.g., red)" />`;
-  customizationContainer.appendChild(div);
-});
-
-// Load voices dynamically
-async function loadVoices() {
-  try {
-    const res = await fetch('/.netlify/functions/get-voices', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
-    const voices = await res.json();
-    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = `${v.name} (${v.lang})`;
-      voiceSelect.appendChild(opt);
-    });
-  } catch(e) {
-    voiceSelect.innerHTML = '<option value="">Failed to load voices</option>';
-    console.error(e);
-  }
+  div.innerHTML = html;
+  document.getElementById(containerId).appendChild(div);
+  updatePreview();
 }
 
-// FBX models (static)
-const fbxModels = [
-  {id:'model1', name:'Humanoid Default'},
-  {id:'model2', name:'Robot Model'}
-];
-fbxModels.forEach(m => {
-  const opt = document.createElement('option');
-  opt.value = m.id;
-  opt.textContent = m.name;
-  fbxSelect.appendChild(opt);
-});
+document.getElementById('addGoalBtn').addEventListener('click', () => addItem('goalsContainer', `<div class="goalItem"><input type="text" class="goalText" placeholder="Goal (e.g., Help user)" /><input type="number" class="goalPriority" placeholder="Priority (1-10)" min="1" max="10" step="1" value="1" /></div>`));
+document.getElementById('addExpressionBtn').addEventListener('click', () => addItem('expressionsContainer', `<div class="expressionItem"><input type="text" class="expressionInput" placeholder="Expression (use emoji)" /></div>`));
+document.getElementById('addMemoryBtn').addEventListener('click', () => addItem('memoryContainer', `<div class="memoryItem"><input type="text" class="memoryFact" placeholder="Fact about user or world" /><input type="number" class="memoryImportance" placeholder="Importance (0-1)" min="0" max="1" step="0.01" value="0.5" /></div>`));
+document.getElementById('addCustomizationBtn').addEventListener('click', () => addItem('customizationContainer', `<div class="customizationItem"><input type="text" class="customizationKey" placeholder="Feature (e.g., hatColor)" /><input type="text" class="customizationValue" placeholder="Value (e.g., red)" /></div>`));
 
-// Handle form submission
-form.addEventListener('submit', async e => {
+async function loadVoices() {
+  try {
+    const res = await fetch('/.netlify/functions/get-voices',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
+    const voices = await res.json();
+    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
+    voices.forEach(v => { const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
+  } catch(e){ voiceSelect.innerHTML='<option value="">Failed to load voices</option>'; console.error(e); }
+}
+
+const fbxModels=[{id:'model1',name:'Humanoid Default'},{id:'model2',name:'Robot Model'}];
+fbxModels.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.id; opt.textContent=m.name; fbxSelect.appendChild(opt); });
+
+function updatePreview(){
+  const name = document.getElementById('botName').value;
+  const description = document.getElementById('description').value;
+  const mood = document.getElementById('mood').value;
+  const trust = document.getElementById('trust').value;
+  const stress = document.getElementById('stress').value;
+  const advanced = document.getElementById('advancedFeatures').checked;
+  const goals = Array.from(document.querySelectorAll('.goalItem')).map(g=>g.querySelector('.goalText').value).filter(Boolean);
+  const memories = Array.from(document.querySelectorAll('.memoryItem')).map(m=>m.querySelector('.memoryFact').value).filter(Boolean);
+  preview.innerHTML = `<strong>Name:</strong> ${name || '-'}<br>
+                       <strong>Description:</strong> ${description || '-'}<br>
+                       <strong>Mood:</strong> ${mood || '-'} | <strong>Trust:</strong> ${trust} | <strong>Stress:</strong> ${stress}<br>
+                       <strong>Goals:</strong> ${goals.join(', ') || '-'}<br>
+                       <strong>Memory:</strong> ${memories.join(', ') || '-'}<br>
+                       <strong>Advanced Thinking:</strong> ${advanced ? 'Enabled' : 'Disabled'}`;
+}
+
+// Update preview whenever inputs change
+document.querySelectorAll('input, textarea').forEach(inp => inp.addEventListener('input', updatePreview));
+document.getElementById('advancedFeatures').addEventListener('change', updatePreview);
+document.getElementById('goalsContainer').addEventListener('input', updatePreview);
+document.getElementById('memoryContainer').addEventListener('input', updatePreview);
+
+form.addEventListener('submit', async e=>{
   e.preventDefault();
-
-  const name = document.getElementById('botName').value.trim();
-  const description = document.getElementById('description').value.trim();
-  const voice_id = voiceSelect.value;
-  const fbx_model_id = fbxSelect.value;
-  const paid_link = document.getElementById('gumroadLink').value.trim();
-
-  const personality = {
+  const name=document.getElementById('botName').value.trim();
+  const description=document.getElementById('description').value.trim();
+  const voice_id=voiceSelect.value;
+  const fbx_model_id=fbxSelect.value;
+  const paid_link=document.getElementById('gumroadLink').value.trim();
+  const personality={
     tone: document.getElementById('personalityTone').value.trim(),
     traits: document.getElementById('personalityTraits').value.split(',').map(t=>t.trim()).filter(Boolean),
     values: document.getElementById('personalityValues').value.split(',').map(t=>t.trim()).filter(Boolean),
     boundaries: document.getElementById('personalityBoundaries').value.split(',').map(t=>t.trim()).filter(Boolean)
   };
-
-  const emotional_state = {
+  const emotional_state={
     mood: document.getElementById('mood').value.trim(),
-    trust: parseFloat(document.getElementById('trust').value) || 0.5,
-    stress: parseFloat(document.getElementById('stress').value) || 0.2
+    trust: parseFloat(document.getElementById('trust').value)||0.5,
+    stress: parseFloat(document.getElementById('stress').value)||0.2
   };
+  const goals=Array.from(document.querySelectorAll('.goalItem')).map(item=>{ const goal=item.querySelector('.goalText').value.trim(); const priority=parseInt(item.querySelector('.goalPriority').value)||1; return goal?{goal,priority}:null; }).filter(Boolean);
+  const expressions=Array.from(document.querySelectorAll('.expressionInput')).map(i=>i.value.trim()).filter(Boolean);
+  const memories=Array.from(document.querySelectorAll('.memoryItem')).map(item=>{ const fact=item.querySelector('.memoryFact').value.trim(); const importance=parseFloat(item.querySelector('.memoryImportance').value)||0.5; return fact?{user:name,fact,importance}:null; }).filter(Boolean);
+  const customization={}; Array.from(document.querySelectorAll('.customizationItem')).forEach(item=>{ const key=item.querySelector('.customizationKey').value.trim(); const value=item.querySelector('.customizationValue').value.trim(); if(key) customization[key]=value; });
+  const advancedFeatures=document.getElementById('advancedFeatures').checked;
+  let dialogueText=''; const dialogueFile=document.getElementById('dialogueFile').files[0]; if(dialogueFile) dialogueText=await dialogueFile.text();
 
-  const goals = Array.from(document.querySelectorAll('.goalItem')).map(item => {
-    const goalText = item.querySelector('.goalText').value.trim();
-    const priority = parseInt(item.querySelector('.goalPriority').value) || 1;
-    return goalText ? { goal: goalText, priority } : null;
-  }).filter(Boolean);
-
-  const expressions = Array.from(document.querySelectorAll('.expressionInput')).map(i => i.value.trim()).filter(Boolean);
-
-  const memories = Array.from(document.querySelectorAll('.memoryItem')).map(item => {
-    const fact = item.querySelector('.memoryFact').value.trim();
-    const importance = parseFloat(item.querySelector('.memoryImportance').value) || 0.5;
-    return fact ? { user: name, fact, importance } : null;
-  }).filter(Boolean);
-
-  const customization = {};
-  Array.from(document.querySelectorAll('.customizationItem')).forEach(item => {
-    const key = item.querySelector('.customizationKey').value.trim();
-    const value = item.querySelector('.customizationValue').value.trim();
-    if(key) customization[key] = value;
-  });
-
-  const advancedFeatures = document.getElementById('advancedFeatures').checked;
-
-  // Read dialogue file
-  let dialogueText = '';
-  const dialogueFile = document.getElementById('dialogueFile').files[0];
-  if(dialogueFile) dialogueText = await dialogueFile.text();
-
-  if(!name || !description || !voice_id || !fbx_model_id){
-    output.textContent = 'Please fill all required fields.';
-    output.className = 'output error';
-    return;
-  }
-
-  output.textContent = 'Creating bot...';
-  output.className = 'output';
-
-  try {
-    const res = await fetch('/.netlify/functions/overpoweredbot', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials:'include',
-      body: JSON.stringify({ 
-        action:'createbot', 
-        name, description, voice_id, fbx_model_id, paid_link,
-        personality, emotional_state, goals, expressions,
-        memories, dialogue: dialogueText, customization,
-        advancedFeatures
-      })
-    });
-    const data = await res.json();
-    if(!res.ok || data.error){
-      output.textContent = `Error: ${data.error || 'Unknown'}`;
-      output.className = 'output error';
-      return;
-    }
-    output.innerHTML = `<strong>Bot Created Successfully!</strong><br>
-      Bot Token (save this!): <code>${data.bot_token || 'N/A'}</code><br>
-      API Key (for external website): <code>${data.api_key || 'Generated on backend'}</code><br>
-      Expires in: ${data.expires_in_minutes || 'N/A'} minutes`;
-    output.className = 'output success';
-    form.reset();
-  } catch(e) {
-    output.textContent = 'Failed to create bot.';
-    output.className = 'output error';
-    console.error(e);
-  }
+  if(!name||!description||!voice_id||!fbx_model_id){ output.textContent='Please fill all required fields.'; output.className='output error'; return; }
+  output.textContent='Creating bot...'; output.className='output';
+  try{
+    const res=await fetch('/.netlify/functions/overpoweredbot',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({
+      action:'createbot', name, description, voice_id, fbx_model_id, paid_link, personality, emotional_state, goals, expressions, memories, dialogue:dialogueText, customization, advancedFeatures
+    })});
+    const data=await res.json();
+    if(!res.ok||data.error){ output.textContent=`Error: ${data.error||'Unknown'}`; output.className='output error'; return; }
+    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>Bot Token: <code>${data.bot_token||'N/A'}</code><br>API Key: <code>${data.api_key||'Generated on backend'}</code><br>Expires in: ${data.expires_in_minutes||'N/A'} minutes`;
+    output.className='output success'; form.reset(); updatePreview();
+  }catch(e){ output.textContent='Failed to create bot.'; output.className='output error'; console.error(e); }
 });
 
 loadVoices();
+updatePreview();
 </script>
 </body>
 </html>
