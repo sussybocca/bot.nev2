@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import videoMetadata from 'video-metadata-thumbnails';
 import getVideoInfo from 'get-video-info';
 import probe from 'probe-image-size';
-import sharp from 'sharp';
 import fetch from 'node-fetch';
 
 // Supabase
@@ -78,8 +77,6 @@ export const handler = async () => {
               coverSize = { width: probed.width, height: probed.height };
             } catch {}
 
-            // generate thumbnail
-            await sharp(coverBuffer).resize(320, 180).toBuffer();
             coverUrl = signedCover.signedUrl;
           }
         }
