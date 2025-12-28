@@ -48,13 +48,7 @@
   <div id="inbox">Loading emails...</div>
 </main>
 
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-const SUPABASE_URL = '<YOUR_SUPABASE_URL>';
-const SUPABASE_ANON_KEY = '<YOUR_SUPABASE_ANON_KEY>';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+<script>
 const toUserSelect = document.getElementById('toUser');
 const avatarPreview = document.getElementById('avatarPreview');
 const subjectInput = document.getElementById('subject');
@@ -68,7 +62,7 @@ function sanitize(str) {
   return str.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;');
 }
 
-// ----------------- Load initial users -----------------
+// Load users for sending emails
 async function loadUsers() {
   try {
     const res = await fetch('/.netlify/functions/getVerifiedUsers', { method: 'POST', credentials: 'include' });
@@ -97,7 +91,7 @@ toUserSelect.addEventListener('change', () => {
   avatarPreview.src = selected?.dataset.avatar || '';
 });
 
-// ----------------- Load initial inbox -----------------
+// Load inbox
 async function loadInbox() {
   try {
     const res = await fetch('/.netlify/functions/Inbox', { method: 'GET', credentials: 'include' });
@@ -108,38 +102,47 @@ async function loadInbox() {
       return;
     }
 
+    if (!data.emails.length) {
+      inboxDiv.textContent = 'No emails';
+      return;
+    }
+
     inboxDiv.innerHTML = '';
-    data.emails.forEach(e => addEmailToInbox(e));
+    data.emails.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'email';
+
+      const sender = e.from || { username: 'Unknown', email: '', avatar_url: '', online: false };
+
+      div.innerHTML = `
+        <div class="email-content" style="display:flex; gap:10px; align-items:flex-start; padding:10px; border-bottom:1px solid #ddd;">
+          <img src="${sanitize(sender.avatar_url)}" alt="${sanitize(sender.username)}" width="50" height="50" style="border-radius:50%;">
+          <div>
+            <div><strong>From:</strong> ${sanitize(sender.username)} (${sanitize(sender.email)}) ${sender.online ? '🟢' : '⚪'}</div>
+            <div><strong>Subject:</strong> ${sanitize(e.subject) || '(none)'}</div>
+            <div><strong>Date:</strong> ${new Date(e.created_at).toLocaleString()}</div>
+            <div>${sanitize(e.body)}</div>
+          </div>
+        </div>
+      `;
+      inboxDiv.appendChild(div);
+    });
+
   } catch (err) {
     console.error('Failed to load inbox:', err);
     inboxDiv.textContent = 'Failed to load inbox';
   }
 }
 
-function addEmailToInbox(email) {
-  const div = document.createElement('div');
-  div.className = 'email';
-
-  const sender = email.from || { username: 'Unknown', email: '', avatar_url: '', online: false };
-
-  div.innerHTML = `
-    <div class="email-content" style="display:flex; gap:10px; align-items:flex-start; padding:10px; border-bottom:1px solid #ddd;">
-      <img src="${sanitize(sender.avatar_url)}" alt="${sanitize(sender.username)}" width="50" height="50" style="border-radius:50%;">
-      <div>
-        <div>
-          <strong>From:</strong> ${sanitize(sender.username)} (${sanitize(sender.email)}) 
-          <span style="color:${sender.online ? '#0f0' : '#888'}; font-weight:bold;">${sender.online ? '●' : '○'}</span>
-        </div>
-        <div><strong>Subject:</strong> ${sanitize(email.subject) || '(none)'}</div>
-        <div><strong>Date:</strong> ${new Date(email.created_at).toLocaleString()}</div>
-        <div>${sanitize(email.body)}</div>
-      </div>
-    </div>
-  `;
-  inboxDiv.prepend(div); // newest on top
+// Simple sanitizer for frontend display
+function sanitize(str) {
+  const temp = document.createElement('div');
+  temp.textContent = str || '';
+  return temp.innerHTML;
 }
 
-// ----------------- Send email -----------------
+
+// Send email
 sendBtn.addEventListener('click', async () => {
   const to_user = toUserSelect.value;
   const subject = subjectInput.value.trim();
@@ -158,6 +161,7 @@ sendBtn.addEventListener('click', async () => {
       output.textContent = 'Email sent successfully.';
       subjectInput.value = '';
       bodyInput.value = '';
+      loadInbox();
     } else {
       output.textContent = 'Error: ' + (data.error || 'Unknown error');
     }
@@ -167,49 +171,9 @@ sendBtn.addEventListener('click', async () => {
   }
 });
 
-// ----------------- Supabase Realtime Subscriptions -----------------
-async function setupRealtime() {
-  // Users table subscription (online status)
-  supabase.channel('public:users')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users' }, payload => {
-      const updatedUser = payload.new;
-      const option = Array.from(toUserSelect.options).find(o => o.value === updatedUser.email);
-      if (option) {
-        option.textContent = `${updatedUser.online ? '🟢' : '⚪'} ${updatedUser.username || updatedUser.email}`;
-        option.dataset.avatar = updatedUser.avatar_url;
-      }
-    })
-    .subscribe();
-
-  // Emails table subscription (new inbox emails)
-  supabase.channel('public:emails')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails' }, payload => {
-      const newEmail = payload.new;
-      // Check if this email is for the current user
-      fetch('/.netlify/functions/getCurrentUserEmail', { credentials: 'include' })
-        .then(r => r.json())
-        .then(currentUser => {
-          if (currentUser.email === newEmail.to_user) {
-            addEmailToInbox({
-              ...newEmail,
-              from: {
-                email: newEmail.from_user,
-                username: newEmail.from_user, // optional, you could fetch sender info if needed
-                avatar_url: `https://avatars.dicebear.com/api/initials/${encodeURIComponent(newEmail.from_user)}.svg`,
-                online: false
-              }
-            });
-          }
-        });
-    })
-    .subscribe();
-}
-
-// ----------------- Initialize -----------------
+// Initialize
 loadUsers();
 loadInbox();
-setupRealtime();
-
 </script>
 
 </body>
