@@ -1,366 +1,617 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- Favicon -->
-<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-<link rel="shortcut icon" type="image/x-icon" href="assets/favicon.ico">
-
-<title>Friend Requests & Create Bot — Botnev</title>
-<meta name="description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
-
-<!-- Open Graph & Twitter Cards -->
-<meta property="og:title" content="Friend Requests & Create Bot — Botnev">
-<meta property="og:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
-<meta property="og:image" content="https://botnet2.netlify.app/assets/og-image.png">
-<meta property="og:url" content="https://botnet2.netlify.app/create-bot.html">
-<meta property="og:type" content="website">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Friend Requests & Create Bot — Botnev">
-<meta name="twitter:description" content="Manage friend requests and create your own AI bot on Botnev! Customize your bot, select voices, and models.">
-<meta name="twitter:image" content="https://botnet2.netlify.app/assets/og-image.png">
-
-<!-- JSON-LD -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "Botnev",
-  "url": "https://botnet2.netlify.app/create-bot.html",
-  "logo": {
-    "@type": "ImageObject",
-    "url": "https://botnet2.netlify.app/assets/logo.png",
-    "width": 200,
-    "height": 200
-  },
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "contactType": "customer service",
-    "areaServed": "US",
-    "availableLanguage": "English"
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="shortcut icon" type="image/x-icon" href="assets/favicon.ico">
+  
+  <title>Botnev — create intelligence, expand universe</title>
+  <meta name="description" content="Fully immersive bot studio & friend hub. Design voice, form, model. Forge your AI with Botnev.">
+  
+  <!-- Open Graph & Twitter Cards -->
+  <meta property="og:title" content="Botnev — create AI, connect souls">
+  <meta property="og:description" content="Step into the immersive bot forge. Manage friends, design voices, sculpt FBX models.">
+  <meta property="og:image" content="https://botnet2.netlify.app/assets/og-image.png">
+  <meta property="og:url" content="https://botnet2.netlify.app/create-bot.html">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Botnev — create AI, connect souls">
+  <meta name="twitter:description" content="Step into the immersive bot forge. Manage friends, design voices, sculpt FBX models.">
+  <meta name="twitter:image" content="https://botnet2.netlify.app/assets/og-image.png">
+  
+  <!-- JSON-LD (unchanged) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Botnev",
+    "url": "https://botnet2.netlify.app/create-bot.html",
+    "logo": {"@type": "ImageObject","url": "https://botnet2.netlify.app/assets/logo.png","width": 200,"height": 200},
+    "contactPoint": {"@type": "ContactPoint","contactType": "customer service","areaServed": "US","availableLanguage": "English"}
   }
-}
-</script>
-
-<style>
-/* Reset & layout */
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-  -webkit-overflow-scrolling: touch;
-}
-
-body {
-  display: flex;
-  flex-direction: row;
-  min-height: 100vh;
-  background: #f9fafc;
-}
-
-/* Sidebar */
-#sidebar {
-  width: 220px; /* slightly smaller for mobile scaling */
-  min-width: 180px;
-  background-color: #1e1e1e;
-  color: #fff;
-  padding: 20px 10px;
-  box-sizing: border-box;
-  overflow-y: auto;
-  flex-shrink: 0;
-  height: 100vh;
-  position: sticky;
-  top: 0;
-}
-
-#sidebar ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#sidebar li {
-  margin-bottom: 10px;
-}
-
-#sidebar a {
-  color: #fff;
-  text-decoration: none;
-  display: block;
-  padding: 8px 12px;
-  border-radius: 5px;
-  transition: background 0.2s;
-}
-
-#sidebar a:hover {
-  background-color: #333;
-}
-
-/* Main content */
-#mainContent {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 20px;
-  min-width: 0; /* fix flexbox overflow on mobile */
-}
-
-/* Profile header */
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.profile-header img {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.online { color: lime; font-weight: bold; }
-.offline { color: gray; font-weight: bold; }
-
-/* Forms and buttons */
-form {
-  max-width: 500px;
-  margin-bottom: 30px;
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-input, textarea, select, button {
-  width: 100%;
-  margin-bottom: 15px;
-  padding: 12px;
-  font-size: 16px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
-}
-
-button {
-  background: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  min-height: 44px;
-}
-
-button:hover {
-  background: #0056b3;
-}
-
-/* Output messages */
-.output {
-  margin-top: 15px;
-  font-family: monospace;
-  padding: 10px;
-  border-radius: 6px;
-}
-.output.success { background: #e6ffed; color: #256d1b; border: 1px solid #8dd48a; }
-.output.error { background: #ffe6e6; color: #a12626; border: 1px solid #f5a3a3; }
-
-/* Friend requests */
-#incomingRequests div {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  padding: 10px;
-  background: #fff;
-  border-radius: 5px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-#incomingRequests div button {
-  margin-top: 5px;
-  padding: 6px 12px;
-}
-
-/* Iframe */
-#iframeContainer {
-  width: 100%;
-  max-width: 100%;
-  height: 400px;
-  border: 1px solid #ccc;
-}
-
-/* Chat bubble */
-#chatBubble {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #007bff;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  z-index: 9999;
-}
-
-#chatBubble span {
-  font-size: 10px;
-  margin-top: 2px;
-  max-width: 55px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#chatBadge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: red;
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 50%;
-  display: none;
-}
-
-/* Images responsive */
-img { max-width: 100%; height: auto; }
-
-/* MOBILE FIXES */
-@media (max-width: 768px) {
-  body {
-    flex-direction: row; /* keep sidebar on left */
-  }
-
-  #sidebar {
-    width: 160px;
-    padding: 10px 5px;
-  }
-
-  #mainContent {
-    padding: 10px;
-    min-width: 0;
-  }
-
-  form, #incomingRequests div {
-    max-width: 100%;
-  }
-
-  #iframeContainer {
-    height: 300px;
-  }
-
-  #chatBubble {
-    width: 56px;
-    height: 56px;
-    bottom: 15px;
-    right: 15px;
-  }
-}
-</style>
+  </script>
+  
+  <!-- Font & Icons (subtle but advanced) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <style>
+    /* –––––––––– RESET / GLOBAL –––––––––– */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 20% 30%, #0c0e14, #030405);
+      color: rgba(255,255,255,0.92);
+      -webkit-font-smoothing: antialiased;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      display: flex;
+      flex-direction: row;
+      min-height: 100vh;
+      backdrop-filter: blur(2px);
+    }
+    
+    /* –––––––––– SIDEBAR – NEO-GLASS –––––––––– */
+    #sidebar {
+      width: 260px;
+      min-width: 200px;
+      background: rgba(8, 12, 21, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid rgba(74, 144, 226, 0.25);
+      box-shadow: 8px 0 30px rgba(0,0,0,0.7);
+      color: #f0f4ff;
+      padding: 28px 16px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      flex-shrink: 0;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      transition: all 0.2s;
+      z-index: 100;
+    }
+    
+    #sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    #sidebar li {
+      margin-bottom: 2px;
+    }
+    
+    #sidebar a {
+      color: rgba(220, 240, 255, 0.8);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-weight: 500;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+      background: transparent;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      backdrop-filter: blur(4px);
+    }
+    
+    #sidebar a i {
+      width: 22px;
+      text-align: center;
+      font-size: 1.1rem;
+      color: #5fa8ff;
+    }
+    
+    #sidebar a:hover {
+      background: rgba(30, 144, 255, 0.15);
+      border: 1px solid rgba(0, 180, 255, 0.4);
+      box-shadow: 0 8px 16px rgba(0,120,255,0.1);
+      color: white;
+      transform: translateX(6px);
+    }
+    
+    /* –––––––––– MAIN – DARK IMMERSIVE –––––––––– */
+    #mainContent {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 32px 36px;
+      min-width: 0;
+      background: transparent;
+      backdrop-filter: blur(2px);
+    }
+    
+    /* Profile card – glassmorphism */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 40px;
+      background: rgba(18, 25, 40, 0.65);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 200, 255, 0.2);
+      border-radius: 42px;
+      padding: 24px 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    }
+    
+    .profile-header img {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(0, 191, 255, 0.6);
+      box-shadow: 0 0 30px #0080ff55;
+      transition: 0.3s;
+    }
+    
+    .profile-header > span {
+      font-size: 1.6rem;
+      font-weight: 600;
+      background: linear-gradient(145deg, #fff, #b0e0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    
+    .online { color: #62faa2; text-shadow: 0 0 12px #26f582; font-weight: 600; }
+    .offline { color: #a5b9d4; opacity: 0.8; }
+    
+    /* controls inside profile */
+    .profile-header div {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      background: rgba(0,0,0,0.25);
+      padding: 14px 20px;
+      border-radius: 48px;
+      backdrop-filter: blur(8px);
+      border: 0.5px solid rgba(255,255,255,0.1);
+    }
+    
+    .profile-header input, .profile-header select {
+      background: rgba(12,20,35,0.9);
+      border: 1px solid #2f4f7a;
+      border-radius: 40px;
+      padding: 12px 18px;
+      color: white;
+      font-weight: 500;
+      width: auto;
+      min-width: 200px;
+      margin-bottom: 0;
+      font-size: 14px;
+    }
+    
+    .profile-header button {
+      background: linear-gradient(145deg, #0a4970, #0a3144);
+      border: none;
+      border-radius: 40px;
+      padding: 12px 26px;
+      color: white;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border: 1px solid #27a0ff;
+      width: auto;
+      margin-bottom: 0;
+      transition: 0.2s;
+      box-shadow: 0 8px 0 #001c2b;
+    }
+    
+    .profile-header button:hover {
+      background: #1565a0;
+      border-color: #a0e0ff;
+      box-shadow: 0 4px 0 #001c2b;
+      transform: translateY(4px);
+    }
+    
+    /* main titles */
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(145deg, #ffffff, #96d9ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 2px solid rgba(0,150,255,0.5);
+      padding-bottom: 20px;
+      text-shadow: 0 0 20px #0055aa80;
+    }
+    
+    h2 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #c7e6ff;
+      margin: 48px 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-left: 8px solid #2a8cff;
+      padding-left: 24px;
+    }
+    
+    /* FORM – cyberpunk studio */
+    form {
+      max-width: 700px;
+      margin-bottom: 40px;
+      background: rgba(12, 22, 38, 0.75);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(0, 200, 255, 0.25);
+      border-radius: 36px;
+      padding: 36px;
+      box-shadow: 0 30px 50px -15px black, 0 0 0 1px rgba(0,255,255,0.1) inset;
+    }
+    
+    label {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+      color: #aadcff;
+      display: block;
+      margin-bottom: 8px;
+      margin-top: 12px;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      margin-bottom: 24px;
+      padding: 16px 22px;
+      font-size: 1rem;
+      border-radius: 40px;
+      border: 1.5px solid #1a405a;
+      background: rgba(0, 0, 0, 0.55);
+      color: #f0fcff;
+      font-weight: 400;
+      transition: 0.2s;
+      backdrop-filter: blur(4px);
+      box-shadow: inset 0 4px 10px rgba(0,0,0,0.6);
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      border-color: #00c8ff;
+      outline: none;
+      box-shadow: 0 0 0 4px #0080ff30, inset 0 2px 8px black;
+      background: rgba(0,20,40,0.9);
+    }
+    
+    textarea {
+      min-height: 130px;
+      border-radius: 28px;
+    }
+    
+    button {
+      background: linear-gradient(165deg, #0070c0, #00263b);
+      border: none;
+      border-radius: 50px;
+      padding: 18px 34px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: white;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: 0.15s;
+      border: 1px solid #48b5ff;
+      box-shadow: 0 14px 0 #00161f, 0 8px 30px #0080ff;
+      width: 100%;
+      text-transform: uppercase;
+    }
+    
+    button:hover {
+      background: #004c97;
+      border-color: #aae0ff;
+      box-shadow: 0 8px 0 #00161f, 0 0 30px #3f9eff;
+      transform: translateY(6px);
+    }
+    
+    /* Output immersive */
+    .output {
+      margin-top: 30px;
+      padding: 24px;
+      border-radius: 28px;
+      font-family: 'Inter', monospace;
+      font-weight: 500;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.55);
+      color: #bbffdd;
+      box-shadow: 0 0 30px #00000070;
+    }
+    .output.success { background: rgba(0,80,20,0.5); border-left: 12px solid #22ff7e; color: #d0ffd0; }
+    .output.error { background: rgba(120,0,0,0.5); border-left: 12px solid #ff4f4f; color: #ffe0e0; }
+    
+    /* Friend requests – sleek pods */
+    #incomingRequests div {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding: 18px 28px;
+      background: rgba(20, 30, 55, 0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 100px;
+      border: 1px solid #3c6780;
+      box-shadow: 0 8px 20px black;
+    }
+    
+    #incomingRequests span {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #d3f2ff;
+    }
+    
+    #incomingRequests button {
+      width: auto;
+      margin: 0 0 0 12px;
+      padding: 12px 28px;
+      font-size: 0.9rem;
+      background: rgba(0,100,200,0.8);
+      box-shadow: 0 6px 0 #001d31;
+      border-radius: 60px;
+    }
+    
+    #friendEmail {
+      max-width: 400px;
+      display: inline-block;
+      margin-right: 16px;
+    }
+    
+    #sendRequestBtn {
+      width: auto;
+      display: inline-block;
+      padding: 16px 36px;
+      background: linear-gradient(145deg, #1b4f6b, #10323f);
+      box-shadow: 0 9px 0 #091c24;
+    }
+    
+    /* iFrame – futuristic portal */
+    #iframeContainer {
+      width: 100%;
+      height: 480px;
+      border-radius: 32px;
+      border: 2px solid rgba(0,200,255,0.5);
+      overflow: hidden;
+      margin: 48px 0 30px;
+      background: #030b14;
+      box-shadow: 0 0 70px #001d3d, inset 0 0 20px #000000;
+    }
+    
+    #content-frame {
+      width: 100%;
+      height: 100%;
+      background: #0a0f16;
+    }
+    
+    /* CHAT BUBBLE – cosmic */
+    #chatBubble {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 20%, #2a80ff, #001d4a);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 35px #0099ff, 0 0 0 3px #ffffff40;
+      backdrop-filter: blur(6px);
+      font-size: 2rem;
+      transition: 0.2s;
+      z-index: 9999;
+    }
+    
+    #chatBubble:hover {
+      transform: scale(1.1);
+      background: #004cff;
+      box-shadow: 0 0 50px #3f9eff;
+    }
+    
+    #chatUsername {
+      font-size: 12px;
+      max-width: 70px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    
+    #chatBadge {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: #ff3b3b;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 30px;
+      font-weight: 800;
+      box-shadow: 0 0 15px red;
+    }
+    
+    /* OVERLAY – full immersive */
+    #iframeOverlay {
+      background: rgba(2, 5, 15, 0.98);
+      backdrop-filter: blur(18px);
+    }
+    
+    #closeIframe {
+      background: rgba(255,255,255,0.1) !important;
+      border: 1.5px solid cyan !important;
+      width: 48px !important;
+      height: 48px !important;
+      font-size: 28px !important;
+      color: white;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    #closeIframe:hover { background: #ff0066 !important; border-color: white; }
+    
+    /* mobile refinements */
+    @media (max-width: 900px) {
+      #sidebar { width: 200px; padding: 20px 10px; }
+      #mainContent { padding: 24px 18px; }
+      h1 { font-size: 2.2rem; }
+      .profile-header { flex-direction: column; align-items: flex-start; }
+      .profile-header div { margin-left: 0; width: 100%; }
+    }
+    
+    @media (max-width: 650px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 2px solid cyan; backdrop-filter: blur(25px); }
+      #sidebar ul { flex-flow: row wrap; }
+      #mainContent { padding: 20px; }
+    }
+    
+    /* custom scroll */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #0a111c; }
+    ::-webkit-scrollbar-thumb { background: #256ba0; border-radius: 30px; border: 2px solid #003355; }
+  </style>
 </head>
 <body>
 
-<!-- Sidebar -->
+<!-- SIDEBAR – with font awesome icons (all original links) -->
 <div id="sidebar">
   <ul>
-    <li><a href="/create.html?user=@scoobydo">⚙️ Create a Bot</a></li>
-    <li><a href="/marketplace.html?character=scoobydo">🛒 Marketplace</a></li>
-    <li><a href="/explore.html?user=@scoobydo">🔍 Explore Bots</a></li>
-    <li><a href="/index.html?user=@scoobydo">🏠 Home</a></li>
-    <li><a href="/login.html?redirect=user=@scoobydo">🔗 Login</a></li>
-    <li><a href="signup.html">Signup</a></li>
-    <li><a href="page/index.html?ref=@scoobydoo">🤣 boteos</a></li>
-    <li><a href="dialogue.html?ref=@fortniteCod6">🙇🧏‍♀️🧏‍♂️🧏 dialogue</a></li>
-    <li><a href="email.html?ref=@dude">🚓🚕🛺 email</a></li>
-    <li><a href="fullSettings.html?ref=@nathenisdiddy">🎇🧨✨🎉 nateyourdiddy</a></li>
-    <li><a href="site-builder.html?ref=@IsaiahIsStraight">🎇🧨✨🎉 site-builder</a></li>
-    <li><a href="recovery-login.html?ref=@recovery-login">🔗 recovery-login</a></li>
-    <li><a href="video.html?ref=@video-page">🎇🧨✨🎉 video-page</a></li>
-    <li><a href="media.html?ref=@media-page">🎧💽📀🔊 media-page</a></li>
-    <li><a href="botcreator.html?ref=@new-bot-create">🤖🔨🛠️ bot-create-page</a></li>
+    <li><a href="/create.html?user=@scoobydo"><i class="fas fa-microchip"></i> Create a Bot</a></li>
+    <li><a href="/marketplace.html?character=scoobydo"><i class="fas fa-store"></i> Marketplace</a></li>
+    <li><a href="/explore.html?user=@scoobydo"><i class="fas fa-compass"></i> Explore Bots</a></li>
+    <li><a href="/index.html?user=@scoobydo"><i class="fas fa-home"></i> Home</a></li>
+    <li><a href="/login.html?redirect=user=@scoobydo"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+    <li><a href="signup.html"><i class="fas fa-user-plus"></i> Signup</a></li>
+    <li><a href="page/index.html?ref=@scoobydoo"><i class="fas fa-laugh-squint"></i> boteos</a></li>
+    <li><a href="dialogue.html?ref=@fortniteCod6"><i class="fas fa-comments"></i> dialogue</a></li>
+    <li><a href="email.html?ref=@dude"><i class="fas fa-envelope"></i> email</a></li>
+    <li><a href="fullSettings.html?ref=@nathenisdiddy"><i class="fas fa-cog"></i> nateyourdiddy</a></li>
+    <li><a href="site-builder.html?ref=@IsaiahIsStraight"><i class="fas fa-dragon"></i> site-builder</a></li>
+    <li><a href="recovery-login.html?ref=@recovery-login"><i class="fas fa-shield-alt"></i> recovery-login</a></li>
+    <li><a href="video.html?ref=@video-page"><i class="fas fa-video"></i> video-page</a></li>
+    <li><a href="media.html?ref=@media-page"><i class="fas fa-headphones"></i> media-page</a></li>
+    <li><a href="botcreator.html?ref=@new-bot-create"><i class="fas fa-robot"></i> bot-create-page</a></li>
   </ul>
 </div>
 
-<!-- Main content -->
+<!-- MAIN CONTENT – advanced bot forge -->
 <div id="mainContent">
+  <!-- profile header - immersive glass panel -->
   <div class="profile-header" id="profile"></div>
-  <h1>🤖 Create Your Bot</h1>
-
+  
+  <h1>
+    <i class="fas fa-cogs" style="-webkit-text-fill-color: white; background: none; text-shadow: 0 0 20px cyan;"></i>
+    BOT FORGE · STUDIO
+  </h1>
+  
+  <!-- bot creation form - next level -->
   <form id="botForm">
-    <input type="text" id="botName" placeholder="Bot Name" required />
-    <textarea id="description" placeholder="Describe your bot..." required></textarea>
-
-    <label for="voiceSelect">Select Voice:</label>
-    <select id="voiceSelect" required><option value="">Loading voices...</option></select>
-
-    <label for="fbxSelect">Select FBX Model:</label>
-    <select id="fbxSelect" required><option value="">Choose FBX Model</option></select>
-
-    <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link for paid model" />
-    <button type="submit">Create Bot</button>
+    <label><i class="fas fa-tag"></i> BOT NAME</label>
+    <input type="text" id="botName" placeholder="e.g., Nova, Atlas, Orion" required />
+    
+    <label><i class="fas fa-scroll"></i> PERSONALITY / DESCRIPTION</label>
+    <textarea id="description" placeholder="Describe soul, behavior, purpose..." required></textarea>
+    
+    <label><i class="fas fa-waveform"></i> VOICE FREQUENCY</label>
+    <select id="voiceSelect" required><option value="">🌀 Loading voices...</option></select>
+    
+    <label><i class="fas fa-cube"></i> FBX CHASSIS</label>
+    <select id="fbxSelect" required><option value="">⚙️ Select FBX Model</option></select>
+    
+    <label><i class="fas fa-link"></i> GUMROAD / PAID ASSET (optional)</label>
+    <input type="text" id="gumroadLink" placeholder="https://gumroad.com/..." />
+    
+    <button type="submit">
+      <i class="fas fa-flask"></i> IGNITE BOT
+    </button>
   </form>
-
-  <div id="output" class="output"></div>
-
-  <h2>Incoming Friend Requests</h2>
+  
+  <!-- output console – advanced -->
+  <div id="output" class="output">
+    <i class="fas fa-terminal"></i> ready for genesis...
+  </div>
+  
+  <h2>
+    <i class="fas fa-user-friends" style="color:#5ed4ff;"></i> INCOMING REQUESTS · FRIEND NEXUS
+  </h2>
   <div id="incomingRequests"></div>
-
-  <input type="email" id="friendEmail" placeholder="Friend's Email">
-  <button id="sendRequestBtn">Send Friend Request</button>
-
+  
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 32px 0 16px;">
+    <input type="email" id="friendEmail" placeholder="friend@cosmos.com" style="flex: 1 1 260px; margin:0;">
+    <button id="sendRequestBtn" style="flex: 0 0 auto;">
+      <i class="fas fa-paper-plane"></i> SEND INVITE
+    </button>
+  </div>
+  
+  <!-- immersive iframe portal -->
   <div id="iframeContainer">
     <iframe id="content-frame" src="" frameborder="0" style="width:100%; height:100%;"></iframe>
   </div>
 </div>
 
-<!-- Chat bubble -->
+<!-- chat bubble cosmic -->
 <div id="chatBubble" onclick="openChat()">
   💬
-  <span id="chatUsername">Chat</span>
+  <span id="chatUsername">AI</span>
   <div id="chatBadge">!</div>
 </div>
 
-<!-- Fullscreen iframe overlay -->
-<!-- Fullscreen iframe overlay -->
-<div id="iframeOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:10000;">
+<!-- fullscreen overlay iframe -->
+<div id="iframeOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); backdrop-filter: blur(28px); z-index:10000;">
   <button id="closeIframe" style="
       position:absolute; 
-      top:10px; 
-      right:10px; 
-      width:30px; 
-      height:30px; 
-      font-size:20px; 
-      line-height:30px; 
+      top:20px; 
+      right:30px; 
+      width:54px; 
+      height:54px; 
+      font-size:38px; 
+      line-height:54px; 
       padding:0; 
-      border:none; 
-      background:rgba(255,255,255,0.2); 
+      border:2px solid cyan; 
+      background:rgba(0,20,50,0.8); 
       color:white; 
       cursor:pointer; 
       border-radius:50%;
       text-align:center;
+      box-shadow: 0 0 30px #00a6ff;
+      z-index:10020;
   ">×</button>
-  <iframe id="overlayFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+  <iframe id="overlayFrame" src="" style="width:100%; height:100%; border:none; background: #030711;"></iframe>
 </div>
 
-
 <script>
-// -----------------------
-// SIDEBAR OVERLAY
-// -----------------------
+// ========================
+//  SIDEBAR OVERLAY (cosmic)
+// ========================
 const links = document.querySelectorAll('#sidebar a');
 const overlay = document.getElementById('iframeOverlay');
 const overlayFrame = document.getElementById('overlayFrame');
@@ -379,14 +630,14 @@ closeBtn.addEventListener('click', () => {
   overlay.style.display = 'none';
 });
 
-// -----------------------
-// CHAT NAVIGATION
-// -----------------------
+// ========================
+//  CHAT NAVIGATION
+// ========================
 function openChat() { window.location.href = '/chat.html'; }
 
-// -----------------------
-// LOAD USER PROFILE
-// -----------------------
+// ========================
+//  PROFILE (ADVANCED UI)
+// ========================
 async function loadProfile() {
   try {
     const res = await fetch('/.netlify/functions/settings', {
@@ -402,38 +653,47 @@ async function loadProfile() {
     const online = !!user.online;
     const avatarUrl = user.avatar_url || `https://avatars.dicebear.com/api/initials/${encodeURIComponent(user.email || 'user')}.svg`;
 
-    document.getElementById('profile').innerHTML = `
+    const profileHtml = `
       <img id="avatarPreview" src="${avatarUrl}" alt="Profile" />
-      <span>${user.username || user.email || 'User'} - 
-        <span id="statusIndicator" class="${online ? 'online' : 'offline'}">${online ? 'Online' : 'Offline'}</span>
+      <span style="display:flex; flex-direction:column;">
+        <span style="font-size:1.8rem; line-height:1.2;">${user.username || user.email || 'Explorer'}</span>
+        <span style="font-size:1rem; display:flex; align-items:center; gap:6px;">
+          <span class="status-dot ${online ? 'online' : 'offline'}" style="width:14px; height:14px; border-radius:50%; background:${online ? '#2aff6e' : '#aaaaaa'}; box-shadow:0 0 16px ${online ? '#0f0' : 'none'};"></span>
+          <span id="statusIndicator" class="${online ? 'online' : 'offline'}">${online ? 'ONLINE' : 'OFFLINE'}</span>
+        </span>
       </span>
-      <div style="margin-top:10px;">
-        <label>Change Avatar URL: <input type="text" id="avatarInput" placeholder="New avatar URL" /></label>
-        <button id="updateAvatarBtn">Update Avatar</button>
-      </div>
-      <div style="margin-top:5px;">
-        <label>Online Status: 
-          <select id="statusSelect">
-            <option value="true" ${online ? 'selected' : ''}>Online</option>
-            <option value="false" ${!online ? 'selected' : ''}>Offline</option>
-          </select>
-        </label>
-        <button id="updateStatusBtn">Update Status</button>
+      <div style="margin-left:auto; display:flex; flex-wrap:wrap; gap:16px;">
+        <div style="display:flex; flex-direction:column; gap:8px; background:transparent; border:none; backdrop-filter:none;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <i class="fas fa-avatar"></i>
+            <input type="text" id="avatarInput" placeholder="new avatar URL" value="${avatarUrl}" style="min-width:200px; margin:0; background:#0a1424;" />
+            <button id="updateAvatarBtn" style="width:auto; margin:0; padding:12px 26px;"><i class="fas fa-sync-alt"></i> UPDATE</button>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <i class="fas fa-signal"></i>
+            <select id="statusSelect" style="min-width:140px; margin:0; background:#0a1424;">
+              <option value="true" ${online ? 'selected' : ''}>🟢 ONLINE</option>
+              <option value="false" ${!online ? 'selected' : ''}>⚫ OFFLINE</option>
+            </select>
+            <button id="updateStatusBtn" style="width:auto; margin:0; padding:12px 26px;"><i class="fas fa-cloud-upload-alt"></i> COMMIT</button>
+          </div>
+        </div>
       </div>
     `;
+    document.getElementById('profile').innerHTML = profileHtml;
     document.getElementById('chatUsername').textContent = user.username || user.email || 'Chat';
 
     // Update avatar
     document.getElementById('updateAvatarBtn').addEventListener('click', async () => {
       const newAvatar = document.getElementById('avatarInput').value.trim();
-      if (!newAvatar) return alert('Please enter a valid URL');
+      if (!newAvatar) return alert('🌌 enter valid URL');
       const res = await fetch('/.netlify/functions/settings', {
         method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
         body: JSON.stringify({ avatar_url: newAvatar })
       });
       const data = await res.json();
-      if(data.success){ document.getElementById('avatarPreview').src = newAvatar; alert('Avatar updated!'); }
-      else alert('Failed: '+data.error);
+      if(data.success){ document.getElementById('avatarPreview').src = newAvatar; alert('✨ avatar morphed'); }
+      else alert('❌ failed: '+data.error);
     });
 
     // Update status
@@ -446,18 +706,19 @@ async function loadProfile() {
       const data = await res.json();
       if(data.success){
         const s = document.getElementById('statusIndicator');
-        s.textContent = newStatus?'Online':'Offline';
+        s.textContent = newStatus?'ONLINE':'OFFLINE';
         s.className = newStatus?'online':'offline';
-        alert('Status updated!');
-      } else alert('Failed: '+data.error);
+        document.querySelector('.status-dot').style.background = newStatus?'#2aff6e':'#aaaaaa';
+        alert('⚡ status transmitted');
+      } else alert('❌ '+data.error);
     });
 
   } catch(e){ console.error(e); }
 }
 
-// -----------------------
-// FRIEND REQUESTS
-// -----------------------
+// ========================
+//  FRIEND REQUESTS (with style)
+// ========================
 async function loadIncoming() {
   try {
     const res = await fetch('/.netlify/functions/friend-requests', {
@@ -467,11 +728,17 @@ async function loadIncoming() {
     const data = await res.json();
     const container = document.getElementById('incomingRequests');
     container.innerHTML = '';
+    if (!data.length) { 
+      container.innerHTML = '<div style="background:transparent; border:1px dashed #3b6e9c; justify-content:center; color:#adccff;"><i class="fas fa-star"></i> no incoming requests — cosmos is quiet</div>'; 
+      return; 
+    }
     data.forEach(req => {
       const div = document.createElement('div');
-      div.innerHTML = `<span>${req.sender_email}</span>
-        <button onclick="respond('${req.id}','accepted')">Accept</button>
-        <button onclick="respond('${req.id}','rejected')">Reject</button>`;
+      div.innerHTML = `<span style="display:flex; gap:10px;"><i class="fas fa-user-astronaut" style="color:#5ad0ff;"></i> ${req.sender_email}</span>
+        <span>
+          <button onclick="respond('${req.id}','accepted')" style="background:#007f5f; box-shadow:0 6px 0 #003d2b;"><i class="fas fa-check-circle"></i> ACCEPT</button>
+          <button onclick="respond('${req.id}','rejected')" style="background:#6b2d3b; box-shadow:0 6px 0 #3a1a22; margin-left:10px;"><i class="fas fa-times-circle"></i> REJECT</button>
+        </span>`;
       container.appendChild(div);
     });
   } catch(e){ console.error(e); }
@@ -483,24 +750,25 @@ window.respond = async (id,status) => {
     body: JSON.stringify({ action:'respond', request_id:id, status })
   });
   const data = await res.json();
-  alert(data.success?`Request ${status}`:data.error);
+  alert(data.success ? `⛓️ request ${status}` : '⚠️ '+data.error);
   loadIncoming();
 };
 
 document.getElementById('sendRequestBtn').addEventListener('click', async ()=>{
   const receiver_email = document.getElementById('friendEmail').value;
+  if (!receiver_email) return alert('🌀 enter email');
   const res = await fetch('/.netlify/functions/friend-requests',{
     method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
     body: JSON.stringify({ action:'send', sender_email: window.userEmail, receiver_email })
   });
   const data = await res.json();
-  alert(data.success?'Request sent!':data.error);
+  alert(data.success ? '✨ request sent!' : '⚠️ '+data.error);
   loadIncoming();
 });
 
-// -----------------------
-// BOT CREATION
-// -----------------------
+// ========================
+//  BOT CREATION (FORGE)
+// ========================
 const form = document.getElementById('botForm');
 const output = document.getElementById('output');
 const voiceSelect = document.getElementById('voiceSelect');
@@ -510,13 +778,13 @@ async function loadVoices() {
   try {
     const res = await fetch('/.netlify/functions/get-voices',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
     const voices = await res.json();
-    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v=>{ const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
-  } catch(e){ voiceSelect.innerHTML='<option value="">Failed to load voices</option>'; console.error(e);}
+    voiceSelect.innerHTML = '<option value="">🎤 SELECT VOICE PROFILE</option>';
+    voices.forEach(v=>{ const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`🎙️ ${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
+  } catch(e){ voiceSelect.innerHTML='<option value="">⚠️ voice offline</option>'; console.error(e);}
 }
 
-const fbxModels = [{id:'model1',name:'Humanoid Default'},{id:'model2',name:'Robot Model'}];
-fbxModels.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.id; opt.textContent=m.name; fbxSelect.appendChild(opt); });
+const fbxModels = [{id:'model1',name:'HUMANOID · NEO'},{id:'model2',name:'ROBOT · MECH'}];
+fbxModels.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.id; opt.textContent=`🧊 ${m.name}`; fbxSelect.appendChild(opt); });
 
 form.addEventListener('submit', async e=>{
   e.preventDefault();
@@ -526,8 +794,8 @@ form.addEventListener('submit', async e=>{
   const fbx_model_id=fbxSelect.value;
   const paid_link=document.getElementById('gumroadLink').value.trim();
 
-  if(!name||!description||!voice_id||!fbx_model_id){ output.textContent='Please fill all required fields.'; output.className='output error'; return; }
-  output.textContent='Creating bot...'; output.className='output';
+  if(!name||!description||!voice_id||!fbx_model_id){ output.innerHTML='<i class="fas fa-exclamation-triangle"></i> ALL CORE FIELDS REQUIRED.'; output.className='output error'; return; }
+  output.innerHTML='<i class="fas fa-spinner fa-pulse"></i> INFUSING BOT WITH SOUL ...'; output.className='output';
 
   try{
     const res = await fetch('/.netlify/functions/overpoweredbot',{
@@ -535,26 +803,23 @@ form.addEventListener('submit', async e=>{
       body: JSON.stringify({ name, description, voice_id, fbx_model_id, paid_link })
     });
     const data = await res.json();
-    if(!res.ok||data.error){ output.textContent=`Error: ${data.error||'Unknown'}`; output.className='output error'; return; }
-    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>ID/Hash: ${data.id||'N/A'}<br>API Key: ${data.apiKey||'Check Backend'}<br>File: bot.js<br><br>
-      <a href="/explore.html">🔍 Explore</a> | <a href="/index.html">🏠 Home</a>`;
+    if(!res.ok||data.error){ output.innerHTML=`❌ ERROR: ${data.error||'unknown'}`; output.className='output error'; return; }
+    output.innerHTML=`
+      <i class="fas fa-check-circle" style="color:#6effa0;"></i> <strong style="font-size:1.6rem;">BOT IGNITED</strong><br>
+      <span style="background: #0f2640; padding:10px; border-radius:50px;">🤖 ID: ${data.id||'N/A'}</span><br>
+      🔑 API KEY: <span style="background:#002a4a; padding:6px 14px; border-radius: 30px;">${data.apiKey||'embedded'}</span><br>
+      📦 MANIFEST: bot.js · neural core stable<br><br>
+      <a href="/explore.html" style="color:#9adcff; font-weight:bold; border:1px solid cyan; padding:10px 20px; border-radius:50px; text-decoration:none;"><i class="fas fa-search"></i> EXPLORE UNIVERSE</a>
+    `;
     output.className='output success';
     form.reset();
-  }catch(e){ output.textContent='Failed to create bot.'; output.className='output error'; }
+  }catch(e){ output.innerHTML='💥 BOT SYNTHESIS FAILED.'; output.className='output error'; }
 });
 
-// -----------------------
-// INITIAL LOAD
-// -----------------------
+// ========================
+//  INITIATE
+// ========================
 loadProfile().then(loadIncoming).then(loadVoices);
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
