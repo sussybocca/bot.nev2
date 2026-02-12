@@ -1,3 +1,6 @@
+console.log('ALL ENV KEYS:', Object.keys(process.env));
+console.log('SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
+console.log('SESSION_SECRET length:', process.env.SESSION_SECRET?.length);
 import { createClient } from '@supabase/supabase-js';
 import cookie from 'cookie';
 import crypto from 'crypto';
