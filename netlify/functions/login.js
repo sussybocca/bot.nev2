@@ -42,28 +42,15 @@ async function randomDelay() {
   return new Promise(res => setTimeout(res, delay));
 }
 
-// AES-GCM encrypted session token generator
-function generateEncryptedTokenPair() {
+// AES-GCM encrypted session token
+function generateEncryptedToken() {
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(process.env.SESSION_SECRET, 'salt', 32);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
-  
-  const uuid = uuidv4(); // This goes in DB
+  const uuid = uuidv4();
   const encrypted = cipher.update(uuid, 'utf8', 'hex') + cipher.final('hex');
   const tag = cipher.getAuthTag().toString('hex');
-  
-  const encryptedToken = `${iv.toString('hex')}:${tag}:${encrypted}`; // Goes to cookie
-  
-  return {
-    uuid, // Store this in database
-    encryptedToken // Send this to browser
-  };
-}
-
-// Backward compatibility - detect token format
-function isLegacyToken(token) {
-  // Legacy tokens are just UUIDs (no colons)
-  return token && !token.includes(':') && token.length === 36;
+  return `${iv.toString('hex')}:${tag}:${encrypted}`;
 }
 
 // Send verification email
@@ -160,56 +147,15 @@ export const handler = async (event) => {
       .eq('email', email)
       .eq('fingerprint', deviceFingerprint);
 
-    // ===== UPDATED SESSION CREATION =====
-    // Generate both UUID (for DB) and encrypted token (for cookie)
-    const { uuid: sessionUuid, encryptedToken } = generateEncryptedTokenPair();
+    // Create session
+    const session_token = generateEncryptedToken();
     const expiresInDays = remember_me ? 90 : 1;
-    const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
-    // Check if session already exists for this user/device
-    const { data: existingSession } = await supabase
-      .from('sessions')
-      .select('id, session_token')
-      .eq('user_email', email)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    // Handle existing session - support both legacy and new formats
-    if (existingSession) {
-      const isLegacy = isLegacyToken(existingSession.session_token);
-      
-      if (isLegacy) {
-        // Legacy session - update it with new UUID format
-        const { error: updateError } = await supabase
-          .from('sessions')
-          .update({
-            session_token: sessionUuid, // Convert to UUID format
-            expires_at: expiresAt,
-            verified: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSession.id);
-        
-        if (updateError) console.error('Failed to update legacy session:', updateError);
-      } else {
-        // Delete old session for this device to prevent accumulation
-        await supabase
-          .from('sessions')
-          .delete()
-          .eq('user_email', email)
-          .eq('session_token', existingSession.session_token);
-      }
-    }
-
-    // Insert new session with UUID in database
     const { error: sessionError } = await supabase.from('sessions').insert({
       user_email: email,
-      session_token: sessionUuid, // ✅ Store UUID in database (no colons)
-      expires_at: expiresAt,
-      verified: true,
-      created_at: new Date().toISOString(),
-      device_fingerprint: deviceFingerprint // Optional: add this column to track devices
+      session_token,
+      expires_at: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
+      verified: true
     });
 
     if (sessionError) {
@@ -217,59 +163,20 @@ export const handler = async (event) => {
       return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Failed to create session', details: sessionError.message }) };
     }
 
-    // Update user's last fingerprint
-    await supabase.from('users').update({ 
-      last_fingerprint: deviceFingerprint,
-      last_login: new Date().toISOString(),
-      online: true 
-    }).eq('email', email);
+    await supabase.from('users').update({ last_fingerprint: deviceFingerprint }).eq('email', email);
 
-    // ===== BACKWARD COMPATIBILITY =====
-    // Also maintain legacy sessions table if it exists (for older functions)
-    try {
-      const { data: legacyTable } = await supabase
-        .from('user_sessions')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      
-      if (legacyTable) {
-        await supabase.from('user_sessions').insert({
-          user_id: user.id,
-          session_key: sessionUuid,
-          device_fingerprint: deviceFingerprint,
-          expires_at: expiresAt,
-          created_at: new Date().toISOString()
-        }).catch(e => console.log('Legacy session insert skipped:', e.message));
-      }
-    } catch (e) {
-      // Legacy table doesn't exist - ignore
-    }
-
-    // Return cookie with ENCRYPTED token + success
+    // Return cookie + success
     return {
       statusCode: 200,
       headers: {
-        'Set-Cookie': `__Host-session_secure=${encryptedToken}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays * 24 * 60 * 60}; SameSite=Strict`,
+        'Set-Cookie': `__Host-session_secure=${session_token}; Path=/; HttpOnly; Secure; Max-Age=${expiresInDays*24*60*60}; SameSite=Strict`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
-        success: true, 
-        message: 'Verification complete. Login successful!',
-        session_token: sessionUuid, // For debugging if needed
-        expires_at: expiresAt
-      })
+      body: JSON.stringify({ success: true, message: 'Verification complete. Login successful!' })
     };
 
   } catch (err) {
     console.error('LOGIN ERROR:', err);
-    return { 
-      statusCode: 500, 
-      body: JSON.stringify({ 
-        success: false, 
-        error: 'Internal server error', 
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined 
-      }) 
-    };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: 'Internal server error', details: err.message }) };
   }
 };
