@@ -1,216 +1,503 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create AI Bot — Botnev</title>
-<style>
-  body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#f9fafc; }
-  h1 { color:#007bff; }
-  form { max-width:700px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-  input, textarea, select, button { width:100%; margin-bottom:15px; padding:12px; font-size:16px; border-radius:6px; border:1px solid #ccc; box-sizing:border-box; }
-  button { background:#007bff; color:white; border:none; cursor:pointer; }
-  button:hover { background:#0056b3; }
-  fieldset { margin-bottom:15px; padding:15px; border-radius:6px; border:1px solid #ccc; }
-  legend { font-weight:bold; }
-  .output { margin-top:15px; font-family: monospace; padding:10px; border-radius:6px; }
-  .success { background:#e6ffed; color:#256d1b; border:1px solid #8dd48a; }
-  .error { background:#ffe6e6; color:#a12626; border:1px solid #f5a3a3; }
-  .btn-small { width:auto; padding:6px 12px; margin-top:5px; }
-  .goalItem, .expressionItem, .memoryItem, .customizationItem { display:flex; gap:10px; margin-bottom:5px; }
-  .goalItem input, .expressionItem input, .memoryItem input, .customizationItem input { flex:1; }
-  #preview { background:#f0f0f0; padding:15px; border-radius:6px; margin-top:20px; font-family:monospace; max-height:300px; overflow-y:auto; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Botnev · Create Your AI</title>
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(145deg, #f0f4ff 0%, #e6ecfe 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    body.dark {
+      background: linear-gradient(145deg, #0b1120 0%, #19233c 100%);
+      color: #e0e7ff;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .theme-toggle {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 40px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      backdrop-filter: blur(8px);
+    }
+
+    /* Main layout */
+    .creator-panel {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+    }
+
+    /* Form card */
+    .form-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 32px;
+      padding: 2rem;
+      box-shadow: 0 20px 40px -10px rgba(0,20,80,0.2);
+      border: 1px solid rgba(255,255,255,0.5);
+      transition: background 0.3s;
+    }
+
+    .dark .form-card {
+      background: rgba(20,30,50,0.7);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .field-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #1f2a4a;
+    }
+
+    .dark label {
+      color: #b0c4ff;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      border-radius: 20px;
+      border: 1px solid #d9e2ef;
+      background: white;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .dark input, .dark textarea, .dark select {
+      background: #1e2a3a;
+      border-color: #35455a;
+      color: #f0f4ff;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+    }
+
+    /* Dynamic items */
+    .items-container {
+      margin: 1rem 0;
+    }
+
+    .item-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+
+    .item-row input {
+      flex: 1;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    .add-btn {
+      background: rgba(59,130,246,0.1);
+      border: 1px dashed #3b82f6;
+      color: #3b82f6;
+      padding: 0.6rem 1.2rem;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    /* Preview panel */
+    .preview-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 32px;
+      padding: 2rem;
+      box-shadow: 0 20px 40px -10px rgba(0,20,80,0.2);
+      border: 1px solid rgba(255,255,255,0.5);
+      height: fit-content;
+    }
+
+    .dark .preview-card {
+      background: rgba(20,30,50,0.7);
+    }
+
+    .preview-content {
+      background: rgba(0,0,0,0.03);
+      border-radius: 24px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      font-family: 'SF Mono', monospace;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .dark .preview-content {
+      background: #0e1a28;
+    }
+
+    .voice-preview {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .voice-preview button {
+      background: #3b82f6;
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 40px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .submit-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .output {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 20px;
+    }
+
+    .success { background: #d1fae5; color: #065f46; }
+    .error { background: #fee2e2; color: #991b1b; }
+  </style>
 </head>
 <body>
+<div class="container">
+  <div class="header">
+    <span class="logo">⚡ Botnev · Create Your AI</span>
+    <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i> Dark mode</button>
+  </div>
 
-<h1>🤖 Create Your AI Bot</h1>
-<p style="color:#555;">See memory, goals, and advanced thinking in real-time preview below.</p>
+  <div class="creator-panel">
+    <!-- Left: Form -->
+    <div class="form-card">
+      <h2><i class="fas fa-robot"></i> Bot Configuration</h2>
+      <form id="botForm">
+        <div class="field-group">
+          <label>Bot name *</label>
+          <input type="text" id="botName" placeholder="e.g. Nova, Atlas, Sage" required>
+        </div>
 
-<form id="botForm">
-  <input type="text" id="botName" placeholder="Bot Name" required />
-  <textarea id="description" placeholder="Describe your bot..." required></textarea>
+        <div class="field-group">
+          <label>Description *</label>
+          <textarea id="description" rows="2" placeholder="What does your bot do?"></textarea>
+        </div>
 
-  <label for="voiceSelect">Select Voice:</label>
-  <select id="voiceSelect" required><option value="">Loading voices...</option></select>
+        <div class="field-group">
+          <label>Voice <i class="fas fa-volume-up"></i></label>
+          <div class="voice-preview">
+            <select id="voiceSelect" required style="flex:1">
+              <option value="">Loading voices...</option>
+            </select>
+            <button type="button" id="previewVoiceBtn" title="Preview voice"><i class="fas fa-play"></i></button>
+          </div>
+        </div>
 
-  <label for="fbxSelect">Select FBX Model:</label>
-  <select id="fbxSelect" required><option value="">Choose FBX Model</option></select>
+        <div class="field-group">
+          <label>FBX Model</label>
+          <select id="fbxSelect" required>
+            <option value="">Choose model</option>
+            <option value="humanoid_default">Humanoid (Default)</option>
+            <option value="robot_series">Robot Series X</option>
+            <option value="fantasy_elf">Fantasy Elf</option>
+          </select>
+        </div>
 
-  <input type="text" id="gumroadLink" placeholder="Optional Gumroad Link" />
+        <div class="field-group">
+          <label>Gumroad link (optional)</label>
+          <input type="url" id="gumroadLink" placeholder="https://gumroad.com/l/...">
+        </div>
 
-  <fieldset>
-    <legend>Personality</legend>
-    <input type="text" id="personalityTone" placeholder="Tone (e.g., friendly)" />
-    <input type="text" id="personalityTraits" placeholder="Traits (comma separated)" />
-    <input type="text" id="personalityValues" placeholder="Values (comma separated)" />
-    <input type="text" id="personalityBoundaries" placeholder="Boundaries (comma separated)" />
-  </fieldset>
+        <!-- Personality -->
+        <fieldset style="border: none; padding:0;">
+          <legend style="font-weight:600; margin-bottom:0.5rem;">🧠 Personality</legend>
+          <div class="field-group"><input type="text" id="personalityTone" placeholder="Tone (friendly, serious)"></div>
+          <div class="field-group"><input type="text" id="personalityTraits" placeholder="Traits (comma)"></div>
+          <div class="field-group"><input type="text" id="personalityValues" placeholder="Values (comma)"></div>
+          <div class="field-group"><input type="text" id="personalityBoundaries" placeholder="Boundaries (comma)"></div>
+        </fieldset>
 
-  <fieldset>
-    <legend>Emotional State</legend>
-    <input type="text" id="mood" placeholder="Mood (e.g., curious)" />
-    <input type="number" id="trust" placeholder="Trust (0-1)" min="0" max="1" step="0.01" value="0.5" />
-    <input type="number" id="stress" placeholder="Stress (0-1)" min="0" max="1" step="0.01" value="0.2" />
-  </fieldset>
+        <!-- Emotional state -->
+        <fieldset style="border: none; padding:0; margin-top:1rem;">
+          <legend style="font-weight:600;">❤️ Emotional state</legend>
+          <div class="field-group"><input type="text" id="mood" placeholder="Mood (curious, happy)"></div>
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1"><label>Trust (0-1)</label><input type="number" id="trust" min="0" max="1" step="0.01" value="0.5"></div>
+            <div style="flex:1"><label>Stress (0-1)</label><input type="number" id="stress" min="0" max="1" step="0.01" value="0.2"></div>
+          </div>
+        </fieldset>
 
-  <fieldset>
-    <legend>Goals</legend>
-    <div id="goalsContainer">
-      <div class="goalItem">
-        <input type="text" class="goalText" placeholder="Goal (e.g., Help user)" />
-        <input type="number" class="goalPriority" placeholder="Priority (1-10)" min="1" max="10" step="1" value="1" />
+        <!-- Goals (dynamic) -->
+        <div style="margin-top:1.5rem;">
+          <label>🎯 Goals</label>
+          <div id="goalsContainer" class="items-container"></div>
+          <button type="button" id="addGoalBtn" class="add-btn"><i class="fas fa-plus"></i> Add goal</button>
+        </div>
+
+        <!-- Memories (dynamic) -->
+        <div style="margin-top:1.5rem;">
+          <label>💾 Memories</label>
+          <div id="memoryContainer" class="items-container"></div>
+          <button type="button" id="addMemoryBtn" class="add-btn"><i class="fas fa-plus"></i> Add memory</button>
+        </div>
+
+        <!-- Expressions -->
+        <div style="margin-top:1.5rem;">
+          <label>😊 Expressions (emoji + text)</label>
+          <div id="expressionsContainer" class="items-container"></div>
+          <button type="button" id="addExpressionBtn" class="add-btn"><i class="fas fa-plus"></i> Add expression</button>
+        </div>
+
+        <!-- Customisation -->
+        <div style="margin-top:1.5rem;">
+          <label>⚙️ Custom features</label>
+          <div id="customizationContainer" class="items-container"></div>
+          <button type="button" id="addCustomizationBtn" class="add-btn"><i class="fas fa-plus"></i> Add feature</button>
+        </div>
+
+        <!-- Advanced toggle -->
+        <div style="margin: 1.5rem 0;">
+          <label style="display:flex; align-items:center; gap:0.5rem;">
+            <input type="checkbox" id="advancedFeatures" checked> Enable advanced reasoning (self‑reflection, planning, emotional memory)
+          </label>
+        </div>
+
+        <!-- Dialogue file -->
+        <div class="field-group">
+          <label>📄 Custom dialogue (.txt)</label>
+          <input type="file" id="dialogueFile" accept=".txt">
+        </div>
+
+        <button type="submit" class="submit-btn">✨ Create Bot</button>
+        <div id="output" class="output"></div>
+      </form>
+    </div>
+
+    <!-- Right: Live preview & info -->
+    <div class="preview-card">
+      <h2><i class="fas fa-eye"></i> Live Preview</h2>
+      <div id="preview" class="preview-content">
+        Fill the form to see your bot come to life...
+      </div>
+      <div style="background:rgba(0,0,0,0.02); border-radius:20px; padding:1rem;">
+        <p><i class="fas fa-database"></i> <strong>Memory style:</strong> Vector embeddings (pgvector)</p>
+        <p><i class="fas fa-brain"></i> <strong>Reasoning:</strong> GPT‑4 / Claude / Mistral (auto‑select)</p>
+        <p><i class="fas fa-microchip"></i> <strong>Voices:</strong> 100+ accents & languages</p>
       </div>
     </div>
-    <button type="button" id="addGoalBtn" class="btn-small">Add Another Goal</button>
-  </fieldset>
-
-  <fieldset>
-    <legend>Expressions (use emojis!)</legend>
-    <div id="expressionsContainer">
-      <div class="expressionItem">
-        <input type="text" class="expressionInput" placeholder="Expression (e.g., 😀 happy)" />
-      </div>
-    </div>
-    <button type="button" id="addExpressionBtn" class="btn-small">Add Another Expression</button>
-  </fieldset>
-
-  <fieldset>
-    <legend>Memory (optional)</legend>
-    <div id="memoryContainer">
-      <div class="memoryItem">
-        <input type="text" class="memoryFact" placeholder="Fact about user or world" />
-        <input type="number" class="memoryImportance" placeholder="Importance (0-1)" min="0" max="1" step="0.01" value="0.5" />
-      </div>
-    </div>
-    <button type="button" id="addMemoryBtn" class="btn-small">Add Another Memory</button>
-  </fieldset>
-
-  <fieldset>
-    <legend>Custom Dialogue (.txt)</legend>
-    <input type="file" id="dialogueFile" accept=".txt" />
-  </fieldset>
-
-  <fieldset>
-    <legend>Bot Customization (optional)</legend>
-    <div id="customizationContainer">
-      <div class="customizationItem">
-        <input type="text" class="customizationKey" placeholder="Feature (e.g., hatColor)" />
-        <input type="text" class="customizationValue" placeholder="Value (e.g., red)" />
-      </div>
-    </div>
-    <button type="button" id="addCustomizationBtn" class="btn-small">Add Custom Feature</button>
-  </fieldset>
-
-  <fieldset>
-    <legend>Advanced Features</legend>
-    <label>
-      <input type="checkbox" id="advancedFeatures" /> Enable advanced reasoning & memory
-    </label>
-  </fieldset>
-
-  <button type="submit">Create Bot</button>
-</form>
-
-<h3>Live Bot Preview</h3>
-<div id="preview">Memory and settings will appear here in real time...</div>
-
-<div id="output" class="output"></div>
+  </div>
+</div>
 
 <script>
-const form = document.getElementById('botForm');
-const output = document.getElementById('output');
-const voiceSelect = document.getElementById('voiceSelect');
-const fbxSelect = document.getElementById('fbxSelect');
-const preview = document.getElementById('preview');
+  // Theme toggle
+  const themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    themeToggle.innerHTML = document.body.classList.contains('dark') ? '<i class="fas fa-sun"></i> Light mode' : '<i class="fas fa-moon"></i> Dark mode';
+  });
 
-function addItem(containerId, html) {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  document.getElementById(containerId).appendChild(div);
+  // Dynamic fields helpers
+  function createItemRow(containerId, html) {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = html;
+    document.getElementById(containerId).appendChild(div);
+    updatePreview();
+  }
+
+  document.getElementById('addGoalBtn').addEventListener('click', () => createItemRow('goalsContainer', `<input type="text" class="goalText" placeholder="Goal"><input type="number" class="goalPriority" placeholder="Priority 1-10" min="1" max="10" value="5"><button class="remove-btn" onclick="this.parentElement.remove(); updatePreview()"><i class="fas fa-times"></i></button>`));
+  document.getElementById('addMemoryBtn').addEventListener('click', () => createItemRow('memoryContainer', `<input type="text" class="memoryFact" placeholder="Fact"><input type="number" class="memoryImportance" placeholder="Importance 0-1" min="0" max="1" step="0.01" value="0.5"><button class="remove-btn" onclick="this.parentElement.remove(); updatePreview()"><i class="fas fa-times"></i></button>`));
+  document.getElementById('addExpressionBtn').addEventListener('click', () => createItemRow('expressionsContainer', `<input type="text" class="expressionInput" placeholder="e.g. 😀 happy"><button class="remove-btn" onclick="this.parentElement.remove(); updatePreview()"><i class="fas fa-times"></i></button>`));
+  document.getElementById('addCustomizationBtn').addEventListener('click', () => createItemRow('customizationContainer', `<input type="text" class="customizationKey" placeholder="key"><input type="text" class="customizationValue" placeholder="value"><button class="remove-btn" onclick="this.parentElement.remove(); updatePreview()"><i class="fas fa-times"></i></button>`));
+
+  // Load voices from backend
+  async function loadVoices() {
+    try {
+      const res = await fetch('/.netlify/functions/get-voices');
+      const voices = await res.json();
+      const select = document.getElementById('voiceSelect');
+      select.innerHTML = '<option value="">Select a voice</option>';
+      voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = `${v.name} (${v.lang})`;
+        select.appendChild(opt);
+      });
+    } catch {
+      document.getElementById('voiceSelect').innerHTML = '<option value="">Failed to load voices</option>';
+    }
+  }
+
+  // Voice preview (uses browser's speech synthesis as fallback, but in production would call backend TTS)
+  document.getElementById('previewVoiceBtn').addEventListener('click', () => {
+    const voiceId = document.getElementById('voiceSelect').value;
+    if (!voiceId) return alert('Select a voice first');
+    const msg = new SpeechSynthesisUtterance('Hello, I am your AI assistant.');
+    // In a real implementation, you'd map voiceId to a specific speech synthesis voice
+    window.speechSynthesis.speak(msg);
+  });
+
+  // Live preview
+  function updatePreview() {
+    const name = document.getElementById('botName').value || 'Unnamed';
+    const desc = document.getElementById('description').value || '…';
+    const mood = document.getElementById('mood').value || 'neutral';
+    const trust = document.getElementById('trust').value;
+    const stress = document.getElementById('stress').value;
+    const advanced = document.getElementById('advancedFeatures').checked;
+    const goals = Array.from(document.querySelectorAll('#goalsContainer .goalText')).map(i => i.value).filter(Boolean);
+    const memories = Array.from(document.querySelectorAll('#memoryContainer .memoryFact')).map(i => i.value).filter(Boolean);
+    document.getElementById('preview').innerHTML = `
+      <strong>${name}</strong><br>
+      <em>${desc}</em><br><br>
+      😶 Mood: ${mood} | 🤝 Trust: ${trust} | 💢 Stress: ${stress}<br>
+      🎯 Goals: ${goals.join(', ') || 'none'}<br>
+      💾 Memories: ${memories.join(', ') || 'none'}<br>
+      🧠 Advanced: ${advanced ? 'ON' : 'OFF'}
+    `;
+  }
+
+  document.querySelectorAll('input, textarea, select').forEach(el => el.addEventListener('input', updatePreview));
+  document.getElementById('advancedFeatures').addEventListener('change', updatePreview);
+
+  // Form submit
+  document.getElementById('botForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = {
+      name: document.getElementById('botName').value,
+      description: document.getElementById('description').value,
+      voice_id: document.getElementById('voiceSelect').value,
+      fbx_model_id: document.getElementById('fbxSelect').value,
+      paid_link: document.getElementById('gumroadLink').value,
+      personality: {
+        tone: document.getElementById('personalityTone').value,
+        traits: document.getElementById('personalityTraits').value.split(',').map(s => s.trim()).filter(Boolean),
+        values: document.getElementById('personalityValues').value.split(',').map(s => s.trim()).filter(Boolean),
+        boundaries: document.getElementById('personalityBoundaries').value.split(',').map(s => s.trim()).filter(Boolean)
+      },
+      emotional_state: {
+        mood: document.getElementById('mood').value,
+        trust: parseFloat(document.getElementById('trust').value),
+        stress: parseFloat(document.getElementById('stress').value)
+      },
+      goals: Array.from(document.querySelectorAll('#goalsContainer .item-row')).map(row => ({
+        goal: row.querySelector('.goalText')?.value,
+        priority: parseInt(row.querySelector('.goalPriority')?.value) || 1
+      })).filter(g => g.goal),
+      expressions: Array.from(document.querySelectorAll('#expressionsContainer .expressionInput')).map(i => i.value).filter(Boolean),
+      memories: Array.from(document.querySelectorAll('#memoryContainer .item-row')).map(row => ({
+        fact: row.querySelector('.memoryFact')?.value,
+        importance: parseFloat(row.querySelector('.memoryImportance')?.value) || 0.5
+      })).filter(m => m.fact),
+      customization: Object.fromEntries(
+        Array.from(document.querySelectorAll('#customizationContainer .item-row')).map(row => [
+          row.querySelector('.customizationKey')?.value,
+          row.querySelector('.customizationValue')?.value
+        ]).filter(([k]) => k)
+      ),
+      advancedFeatures: document.getElementById('advancedFeatures').checked
+    };
+
+    const file = document.getElementById('dialogueFile').files[0];
+    if (file) formData.dialogue = await file.text();
+
+    const output = document.getElementById('output');
+    output.textContent = 'Creating your bot...';
+    output.className = 'output';
+
+    try {
+      const res = await fetch('/.netlify/functions/overpoweredbot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'createbot', ...formData })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Creation failed');
+      output.innerHTML = `✅ Bot created!<br>Token: <code>${data.bot_token}</code><br>API Key: <code>${data.api_key}</code><br>Expires in: ${data.expires_in_minutes} min`;
+      output.className = 'output success';
+    } catch (err) {
+      output.textContent = '❌ ' + err.message;
+      output.className = 'output error';
+    }
+  });
+
+  loadVoices();
   updatePreview();
-}
-
-document.getElementById('addGoalBtn').addEventListener('click', () => addItem('goalsContainer', `<div class="goalItem"><input type="text" class="goalText" placeholder="Goal (e.g., Help user)" /><input type="number" class="goalPriority" placeholder="Priority (1-10)" min="1" max="10" step="1" value="1" /></div>`));
-document.getElementById('addExpressionBtn').addEventListener('click', () => addItem('expressionsContainer', `<div class="expressionItem"><input type="text" class="expressionInput" placeholder="Expression (use emoji)" /></div>`));
-document.getElementById('addMemoryBtn').addEventListener('click', () => addItem('memoryContainer', `<div class="memoryItem"><input type="text" class="memoryFact" placeholder="Fact about user or world" /><input type="number" class="memoryImportance" placeholder="Importance (0-1)" min="0" max="1" step="0.01" value="0.5" /></div>`));
-document.getElementById('addCustomizationBtn').addEventListener('click', () => addItem('customizationContainer', `<div class="customizationItem"><input type="text" class="customizationKey" placeholder="Feature (e.g., hatColor)" /><input type="text" class="customizationValue" placeholder="Value (e.g., red)" /></div>`));
-
-async function loadVoices() {
-  try {
-    const res = await fetch('/.netlify/functions/get-voices',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include' });
-    const voices = await res.json();
-    voiceSelect.innerHTML = '<option value="">Select Voice</option>';
-    voices.forEach(v => { const opt=document.createElement('option'); opt.value=v.id; opt.textContent=`${v.name} (${v.lang})`; voiceSelect.appendChild(opt); });
-  } catch(e){ voiceSelect.innerHTML='<option value="">Failed to load voices</option>'; console.error(e); }
-}
-
-const fbxModels=[{id:'model1',name:'Humanoid Default'},{id:'model2',name:'Robot Model'}];
-fbxModels.forEach(m=>{ const opt=document.createElement('option'); opt.value=m.id; opt.textContent=m.name; fbxSelect.appendChild(opt); });
-
-function updatePreview(){
-  const name = document.getElementById('botName').value;
-  const description = document.getElementById('description').value;
-  const mood = document.getElementById('mood').value;
-  const trust = document.getElementById('trust').value;
-  const stress = document.getElementById('stress').value;
-  const advanced = document.getElementById('advancedFeatures').checked;
-  const goals = Array.from(document.querySelectorAll('.goalItem')).map(g=>g.querySelector('.goalText').value).filter(Boolean);
-  const memories = Array.from(document.querySelectorAll('.memoryItem')).map(m=>m.querySelector('.memoryFact').value).filter(Boolean);
-  preview.innerHTML = `<strong>Name:</strong> ${name || '-'}<br>
-                       <strong>Description:</strong> ${description || '-'}<br>
-                       <strong>Mood:</strong> ${mood || '-'} | <strong>Trust:</strong> ${trust} | <strong>Stress:</strong> ${stress}<br>
-                       <strong>Goals:</strong> ${goals.join(', ') || '-'}<br>
-                       <strong>Memory:</strong> ${memories.join(', ') || '-'}<br>
-                       <strong>Advanced Thinking:</strong> ${advanced ? 'Enabled' : 'Disabled'}`;
-}
-
-// Update preview whenever inputs change
-document.querySelectorAll('input, textarea').forEach(inp => inp.addEventListener('input', updatePreview));
-document.getElementById('advancedFeatures').addEventListener('change', updatePreview);
-document.getElementById('goalsContainer').addEventListener('input', updatePreview);
-document.getElementById('memoryContainer').addEventListener('input', updatePreview);
-
-form.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const name=document.getElementById('botName').value.trim();
-  const description=document.getElementById('description').value.trim();
-  const voice_id=voiceSelect.value;
-  const fbx_model_id=fbxSelect.value;
-  const paid_link=document.getElementById('gumroadLink').value.trim();
-  const personality={
-    tone: document.getElementById('personalityTone').value.trim(),
-    traits: document.getElementById('personalityTraits').value.split(',').map(t=>t.trim()).filter(Boolean),
-    values: document.getElementById('personalityValues').value.split(',').map(t=>t.trim()).filter(Boolean),
-    boundaries: document.getElementById('personalityBoundaries').value.split(',').map(t=>t.trim()).filter(Boolean)
-  };
-  const emotional_state={
-    mood: document.getElementById('mood').value.trim(),
-    trust: parseFloat(document.getElementById('trust').value)||0.5,
-    stress: parseFloat(document.getElementById('stress').value)||0.2
-  };
-  const goals=Array.from(document.querySelectorAll('.goalItem')).map(item=>{ const goal=item.querySelector('.goalText').value.trim(); const priority=parseInt(item.querySelector('.goalPriority').value)||1; return goal?{goal,priority}:null; }).filter(Boolean);
-  const expressions=Array.from(document.querySelectorAll('.expressionInput')).map(i=>i.value.trim()).filter(Boolean);
-  const memories=Array.from(document.querySelectorAll('.memoryItem')).map(item=>{ const fact=item.querySelector('.memoryFact').value.trim(); const importance=parseFloat(item.querySelector('.memoryImportance').value)||0.5; return fact?{user:name,fact,importance}:null; }).filter(Boolean);
-  const customization={}; Array.from(document.querySelectorAll('.customizationItem')).forEach(item=>{ const key=item.querySelector('.customizationKey').value.trim(); const value=item.querySelector('.customizationValue').value.trim(); if(key) customization[key]=value; });
-  const advancedFeatures=document.getElementById('advancedFeatures').checked;
-  let dialogueText=''; const dialogueFile=document.getElementById('dialogueFile').files[0]; if(dialogueFile) dialogueText=await dialogueFile.text();
-
-  if(!name||!description||!voice_id||!fbx_model_id){ output.textContent='Please fill all required fields.'; output.className='output error'; return; }
-  output.textContent='Creating bot...'; output.className='output';
-  try{
-    const res=await fetch('/.netlify/functions/overpoweredbot',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({
-      action:'createbot', name, description, voice_id, fbx_model_id, paid_link, personality, emotional_state, goals, expressions, memories, dialogue:dialogueText, customization, advancedFeatures
-    })});
-    const data=await res.json();
-    if(!res.ok||data.error){ output.textContent=`Error: ${data.error||'Unknown'}`; output.className='output error'; return; }
-    output.innerHTML=`<strong>Bot Created Successfully!</strong><br>Bot Token: <code>${data.bot_token||'N/A'}</code><br>API Key: <code>${data.api_key||'Generated on backend'}</code><br>Expires in: ${data.expires_in_minutes||'N/A'} minutes`;
-    output.className='output success'; form.reset(); updatePreview();
-  }catch(e){ output.textContent='Failed to create bot.'; output.className='output error'; console.error(e); }
-});
-
-loadVoices();
-updatePreview();
 </script>
 </body>
 </html>
