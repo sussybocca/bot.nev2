@@ -36,7 +36,9 @@
     "sharp": "^0.32.5",
     "isomorphic-dompurify": "^2.34.0",
     "imap": "^0.8.19",
-    "mailparser": "^3.9.0"
+    "mailparser": "^3.9.0",
+    "natural": "^6.5.0",
+    "stopword": "^2.0.8"
   },
   "engines": {
     "node": ">=18"
